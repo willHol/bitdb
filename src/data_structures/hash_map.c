@@ -19,7 +19,7 @@ sdbm(char str[])
 static size_t
 get_index(hash_map *map, char *key)
 {
-	return sdbm(key) % ((int)pow(2, map->dimension)) - 1;
+	return sdbm(key) % ((int)pow(2, map->dimension));
 }
 
 static void
@@ -27,12 +27,11 @@ resize(hash_map *map, size_t dim_change)
 {
 	size_t dim_new = map->dimension + dim_change;
 	sl_list *old_values = map->values;
-	sl_list *new_values = calloc(pow(2,dim_new), sizeof(*new_values));
+	sl_list *new_values = calloc(pow(2,dim_new), sizeof(sl_list));
 	memcpy(new_values, map->values, pow(2,map->dimension) * sizeof(sl_list));
+	
 	map->values = new_values;
 	map->dimension = dim_new;
-
-	free(old_values);
 }
 
 static int

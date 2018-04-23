@@ -10,7 +10,7 @@
  *	- Values can be of an arbitrary length.
  *
  */
-
+#pragma once
 #include <sys/types.h>
 #include "sl_list.h"
 

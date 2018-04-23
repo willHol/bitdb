@@ -1,5 +1,8 @@
+#include "hash_map.h"
+
 typedef struct {
 	int fd;
+	hash_map map;
 } bit_db_conn;
 
 int

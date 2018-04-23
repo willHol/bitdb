@@ -3,6 +3,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include "hash_map.h"
 #include "bit_db.h"
 
 static const char default_name[] = "bit_db";
@@ -31,16 +32,18 @@ bit_db_connect(const char *pathname)
 	pathname = pathname != NULL ? pathname : default_name;
 	if ((conn->fd = open(pathname, flags)) == -1)
 		return NULL;
+	
+	hash_map_init(&conn->map);
 	return conn;
 }
 
 /*
- * We write blocks of file_size | data
+ * We write blocks of file_size | key | data
  * and store the file offset for the data in memory.
  */
 int
 bit_db_put(bit_db_conn *conn, const char *key, void *value, size_t bytes)
 {
-	
+		
 }
 

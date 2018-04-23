@@ -14,7 +14,7 @@ new_node(key_value *kv)
 	 */
 	char *key_cpy = malloc(strlen(kv->key));
 	off_t *value_cpy = malloc(sizeof(kv->value));
-	strcpy(key_cpy, (const char *)kv->key);
+	strcpy(key_cpy, kv->key);
 	memcpy(value_cpy, kv->value, sizeof(kv->value));
 	kv->key = key_cpy;
 	kv->value = value_cpy;
