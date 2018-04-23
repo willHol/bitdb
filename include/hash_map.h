@@ -12,12 +12,13 @@
  */
 
 #include <sys/types.h>
+#include "sl_list.h"
 
 typedef struct {
 	size_t dimension; /* The backing array is of size 2^dimension */
-	const sl_list *values[]; /* An array of pointers to lists of key-value duples */
 	int random_int;
 	int num_elems;
+	sl_list *values; /* An array of pointers to lists of key-value duples */
 } hash_map;
 
 /*
@@ -33,3 +34,8 @@ typedef struct {
 int
 hash_map_init(hash_map *map);
 
+int
+hash_map_put(hash_map *map, char *key, off_t *value);
+
+int
+hash_map_get(hash_map *map, char *key, off_t **value);
