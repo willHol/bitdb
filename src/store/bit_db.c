@@ -1,8 +1,10 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/uio.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <string.h>
 #include "hash_map.h"
 #include "bit_db.h"
 
@@ -38,12 +40,45 @@ bit_db_connect(const char *pathname)
 }
 
 /*
- * We write blocks of file_size | key | data
+ * We write blocks of: key | key_size | data_size | data
  * and store the file offset for the data in memory.
+ * The offset points to data_size.
  */
 int
-bit_db_put(bit_db_conn *conn, const char *key, void *value, size_t bytes)
+bit_db_put(bit_db_conn *conn, char *key, void *value, size_t bytes)
 {
-		
+	off_t off = lseek(conn->fd, 0, SEEK_CUR);
+	size_t key_len = strlen(key);
+
+	struct iovec iov[] = {
+		{.iov_base = (void *)key, .iov_len = key_len},
+		{.iov_base = (void *)&key_len, .iov_len = sizeof(size_t)},
+		{.iov_base = (void *)&bytes, .iov_len = sizeof(size_t)},
+		{.iov_base = value, .iov_len = bytes}
+	};
+
+	if (writev(conn->fd, iov, 4) < 0)
+		return -1;
+
+	off += key_len + sizeof(size_t);
+	return hash_map_put(&conn->map, key, &off); 		
+}
+
+int
+bit_db_get(bit_db_conn *conn, char *key, void *value)
+{
+	off_t *base_off, data_off;
+	size_t data_size;
+
+	hash_map_get(&conn->map, key, &base_off);
+	data_off = *base_off + sizeof(size_t);
+	
+	if (pread(conn->fd, &data_size, sizeof(size_t), *base_off) == -1)
+		return -1;
+	
+	if(pread(conn->fd, value, data_size, data_off) == -1)
+		return -1;
+
+	return 0;
 }
 
