@@ -61,12 +61,13 @@ int
 hash_map_put(hash_map *map, char *key, off_t *value)
 {
 	int status;
-	off_t *unchanged_value = value;
+	off_t *f_value;
 	key_value *kv = malloc(sizeof(*kv));
 
-	if (find(map, key, &value) == 0)
+	if (find(map, key, &f_value) == 0) {
+		*f_value = *value;
 		return 0;
-	value = unchanged_value;
+	}
 
 	if ((map->num_elems + 1) > (pow(2,map->dimension)))
 		resize(map, 1);
