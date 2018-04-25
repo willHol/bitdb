@@ -8,6 +8,7 @@
 #include "hash_map.h"
 #include "bit_db.h"
 
+static const unsigned long magic_seq = 0x123FFABC;
 static const char default_name[] = "bit_db";
 
 int
@@ -19,6 +20,8 @@ bit_db_init(const char *pathname)
 	
 	pathname = pathname != NULL ? pathname : default_name;
 	if ((fd = open(pathname, flags, mode)) == -1)
+		return -1;
+	if (write(fd, &magic_seq, sizeof(magic_seq)) != sizeof(magic_seq))
 		return -1;
 	if (close(fd) == -1)
 		return -1;
@@ -47,7 +50,7 @@ bit_db_connect(const char *pathname)
 int
 bit_db_put(bit_db_conn *conn, char *key, void *value, size_t bytes)
 {
-	off_t off = lseek(conn->fd, 0, SEEK_CUR);
+	off_t off = lseek(conn->fd, 0, SEEK_END);
 	size_t key_len = strlen(key);
 
 	struct iovec iov[] = {
@@ -67,24 +70,30 @@ int
 bit_db_get(bit_db_conn *conn, char *key, void *value)
 {
 	off_t *base_off, data_off;
-	size_t key_size;
-	char *read_key[key_size];
+	size_t key_size = strlen(key);
+	char read_key[key_size];
 	size_t data_size;
 
 	hash_map_get(&conn->map, key, &base_off);
-	data_off = *base_off + sizeof(size_t);
+	data_off = *base_off + 2*sizeof(size_t) + key_size;
 
 	/* We need to also read the key from disk, that way
 	 * we can return an error if the key is not does not
 	 * actually exist at the specified offset
 	 */
-	struct iovec iov[] {
-		{.iov_base = 
+	struct iovec iov[] = {
+		{.iov_base = read_key, .iov_len = key_size},
+		{.iov_base = &data_size, .iov_len = sizeof(data_size)}	
 	};
 
-	if (pread(conn->fd, &data_size, sizeof(size_t), *base_off) == -1)
+	/* Read the key and data size */
+	if (preadv(conn->fd, iov, 2, *base_off+sizeof(size_t)) == -1)
+		return -1;
+
+	if (strcmp(key, read_key) != 0)
 		return -1;
 	
+	/* Read the data */
 	if(pread(conn->fd, value, data_size, data_off) == -1)
 		return -1;
 
