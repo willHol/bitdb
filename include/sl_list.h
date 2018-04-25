@@ -4,6 +4,7 @@
  * 	A singly linked list struct. Stores a tuple of key-value strings.
  *
  */
+#pragma once
 #include <sys/types.h>
 
 typedef struct {
