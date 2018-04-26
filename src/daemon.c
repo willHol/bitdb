@@ -6,7 +6,7 @@
 #include "bit_db.h"
 
 #define NUM_CONNECTIONS 1
-#define NAME_PREFIX "bit_db"
+#define NAME_PREFIX "db/bit_db"
 
 /* 
  * Each connection is associated with an open file and
