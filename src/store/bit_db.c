@@ -4,6 +4,7 @@
 #include <sys/uio.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
 #include <string.h>
 #include "hash_map.h"
 #include "bit_db.h"
@@ -58,12 +59,17 @@ bit_db_connect(bit_db_conn *conn, const char *pathname)
 	unsigned long read_magic_seq;
 
 	pathname = pathname != NULL ? pathname : default_name;
-	if ((conn->fd = open(pathname, flags)) == -1)
+	if ((conn->fd = open(pathname, flags)) == -1) {
 		return -1;
-	if (read(conn->fd, &read_magic_seq, sizeof(unsigned long)) == -1)
+	}
+	if (read(conn->fd, &read_magic_seq, sizeof(unsigned long)) == -1) {
+		errno = EMAGICSEQ;
 		return -1;
-	if (read_magic_seq != magic_seq)
+	}
+	if (read_magic_seq != magic_seq) {
+		errno = EMAGICSEQ;
 		return -1;
+	}
 
 	hash_map_init(&conn->map);
 	return 0;

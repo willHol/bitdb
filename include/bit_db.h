@@ -3,6 +3,7 @@
 
 #define EKEYNOTFOUND 1
 #define EKEYNOTFOUNDDISK 2
+#define EMAGICSEQ 3
 
 typedef struct {
 	int fd;

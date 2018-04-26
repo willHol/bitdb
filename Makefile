@@ -10,11 +10,11 @@ TEST_CFLAGS = -Wl,-wrap,malloc -Wl,-wrap,calloc
 %.o: %.c $(DEPS) $(PROG)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
-main: $(OBJ)
-	gcc -o $@ $^ $(CFLAGS) $(PROG) $(LIBS)
+main: $(OBJ) $(PROG)
+	gcc -o $@ $^ $(CFLAGS) $(LIBS)
 
-test: $(OBJ) $(TEST_OBJ)
-	gcc -o $@ $^ $(CFLAGS) $(TEST_CFLAGS) $(PROG) $(LIBS)
+test: $(OBJ) $(TEST_OBJ) $(PROG)
+	gcc -o $@ $^ $(CFLAGS) $(TEST_CFLAGS) $(LIBS)
 
 .PHONY: clean
 
