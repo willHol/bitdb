@@ -1,11 +1,17 @@
 #include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <errno.h>
+#include <signal.h>
+#include <dirent.h>
 #include <string.h>
+#include "sl_list.h"
 #include "bit_db.h"
 
-#define NUM_CONNECTIONS 1
+#define MAX_SEGMENT_SIZE 64
+#define MAX_NUM_SEGMENTS 128
+#define DIRECTORY "db"
 #define NAME_PREFIX "db/bit_db"
 
 /* 
@@ -14,7 +20,25 @@
  * this makes it easy to partition the database across
  * many files
  */
-static bit_db_conn connections[NUM_CONNECTIONS];
+
+bool volatile run = true;
+static bit_db_conn connections[MAX_NUM_SEGMENTS];
+static size_t num_segments;
+
+static size_t
+count_num_segments()
+{
+	size_t count = -2; /* . and .. */
+	struct dirent *dir;
+	DIR *dirp = opendir(DIRECTORY);
+
+	while ((dir = readdir(dirp)) != NULL) {
+		// TODO: Some regex
+		count ++;
+	}
+	closedir(dirp);
+	return count;
+}
 
 static int
 count_digits(int num)
@@ -25,12 +49,14 @@ count_digits(int num)
 static void
 init_connections(void)
 {
-	int result;
-	int conns_num_digits = count_digits(NUM_CONNECTIONS);
-	char pathname[strlen(NAME_PREFIX) + conns_num_digits];
-	char num_string[conns_num_digits];
+	num_segments = count_num_segments();
 
-	for (size_t i = 0; i < NUM_CONNECTIONS; i++) {
+	int result;
+	int conns_num_digits = count_digits(num_segments);
+	char pathname[strlen(NAME_PREFIX) + conns_num_digits];
+	char num_string[conns_num_digits];	
+
+	for (size_t i = 0; i < num_segments; i++) {
 		strcpy(pathname, NAME_PREFIX);
 		sprintf(num_string, "%d", i);
 		strcat(pathname, num_string);
@@ -53,17 +79,31 @@ init_connections(void)
 static void
 cleanup(void)
 {
-	for (size_t i = 0; i < NUM_CONNECTIONS; i++) {
+	for (size_t i = 0; i < num_segments; i++) {
 		if (bit_db_destroy_conn(&connections[i]) == -1)
 			printf("[DEBUG] Unable to destroy connection #%ld", (long)i);
 	}
+}
+
+static void
+sig_int_handler(int dummy)
+{
+	run = false;
 }
 
 int
 main(int argc, char *argv[])
 {
 	init_connections();	
+	signal(SIGINT, sig_int_handler);
+
+	// TODO: becomeDaemon
 	
+	/* Receive queries and respond to them */
+	for (;run;) {
+	
+	}
+
 	printf("[DEBUG] Cleaning up\n");
 	cleanup();
 	
