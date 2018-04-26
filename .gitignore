@@ -39,6 +39,7 @@ ed by https://www.gitignore.io/api/c,linux
 *.x86_64
 *.hex
 main
+test
 
 # Debug files
 *.dSYM/
