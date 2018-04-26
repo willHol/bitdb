@@ -56,7 +56,7 @@ init_connections(void)
 	char pathname[strlen(NAME_PREFIX) + conns_num_digits];
 	char num_string[conns_num_digits];	
 
-	for (size_t i = 0; i < num_segments; i++) {
+	for (size_t i = 0; i < (num_segments || 1); i++) {
 		strcpy(pathname, NAME_PREFIX);
 		sprintf(num_string, "%d", i);
 		strcat(pathname, num_string);
