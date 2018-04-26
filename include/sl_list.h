@@ -30,6 +30,9 @@ int
 sl_list_destroy(sl_list *list);
 
 int
+sl_list_destroy_kv(key_value *kv);
+
+int
 sl_list_push(sl_list *list, key_value *kv);
 
 int

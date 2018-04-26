@@ -2,7 +2,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <errno.h>
 #include "unity.h"
 #include "hash_map.h"
 
@@ -21,31 +20,44 @@ test_init(void)
 	TEST_ASSERT_EQUAL(1, map.dimension);
 	TEST_ASSERT_NOT_EQUAL(0, map.random_int);
 	TEST_ASSERT_EQUAL(0, map.num_elems);
+
+	hash_map_destroy(&map);
 }
 
 void
 test_put_and_get(void)
 {
 	int result;
-	off_t value = 1234;
+	off_t value1 = 1234, value2 = 678;
 	off_t *get_value;
 	hash_map map;
 	hash_map_init(&map);
 
-	result = hash_map_put(&map, "test", &value);
+	result = hash_map_put(&map, "test1", &value1);
 	TEST_ASSERT_EQUAL(0, result);
 	TEST_ASSERT_EQUAL(1, map.num_elems);
 
-	result = hash_map_get(&map, "test", &get_value);
+	result = hash_map_put(&map, "test2", &value2);
 	TEST_ASSERT_EQUAL(0, result);
-	TEST_ASSERT_EQUAL(value, *get_value);
-	TEST_ASSERT_NOT_EQUAL(&value, get_value); /* Data is copied */
+	TEST_ASSERT_EQUAL(2, map.num_elems);
+
+	result = hash_map_get(&map, "test1", &get_value);
+	TEST_ASSERT_EQUAL(0, result);
+	TEST_ASSERT_EQUAL(value1, *get_value);
+	TEST_ASSERT_NOT_EQUAL(&value1, get_value); /* Data is copied */
+
+	result = hash_map_get(&map, "test2", &get_value);
+	TEST_ASSERT_EQUAL(0, result);
+	TEST_ASSERT_EQUAL(value2, *get_value);
+	TEST_ASSERT_NOT_EQUAL(&value2, get_value);
+
+	hash_map_destroy(&map);
 }
 
 static void
 generate_key(char key[], size_t i)
 {
-	char num[8];
+	char num[8] = "";
 	memset(key, '\0', strlen(key));
 	sprintf(num, "%ld", (long)i);
 	strcpy(key, "key");
@@ -63,7 +75,7 @@ test_resize_works(void)
 	off_t first_value = 123456;
 	off_t last_value  = 789;
 	off_t *value;
-	char key[256];
+	char key[256] = "";
 	hash_map map;
 	hash_map_init(&map);
 
@@ -90,7 +102,9 @@ test_resize_works(void)
 	generate_key(key, index);
 	result = hash_map_get(&map, key, &value);
        	TEST_ASSERT_EQUAL(0, result);
-	TEST_ASSERT_EQUAL(index, *value);	
+	TEST_ASSERT_EQUAL(index, *value);
+
+	hash_map_destroy(&map);	
 }
 
 void
@@ -111,6 +125,8 @@ test_keys_overwritten(void)
 	result = hash_map_get(&map, "key", &value);
 	TEST_ASSERT_EQUAL(0, result);
 	TEST_ASSERT_EQUAL(value_2, *value);
+
+	hash_map_destroy(&map);
 }
 
 void
@@ -124,6 +140,8 @@ test_get_non_existent_key(void)
 	result = hash_map_get(&map, "key", &value);
 	TEST_ASSERT_EQUAL(-1, result);
 	TEST_ASSERT_NULL(value);
+
+	hash_map_destroy(&map);
 }
 
 void
@@ -139,6 +157,7 @@ test_init_malloc_fail(void)
 	TEST_ASSERT_NULL(map.values);
 
 	alloc_works = true;
+	hash_map_destroy(&map);
 }
 
 int

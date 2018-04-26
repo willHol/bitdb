@@ -38,10 +38,9 @@ resize(hash_map *map, size_t dim_change)
 		list = old_values[i];
 		for (node = list.head; node != NULL; node = node->next) {
 			hash_map_put(map, node->kv->key, node->kv->value);
-			free(node->kv->key);
-			free(node->kv->value);
-			free(node->kv);
-		}	
+		}
+		// TODO: Maybe optimise this, because it's iterating twice
+		sl_list_destroy(&list);
 	}
 	free(old_values);
 }
@@ -66,6 +65,18 @@ hash_map_init(hash_map *map)
 	return 0;
 }
 
+int
+hash_map_destroy(hash_map *map)
+{
+	if (map->values == NULL)
+		return 0;
+
+	for (size_t i = 0; i < pow(2,map->dimension); i++) {
+		sl_list_destroy(&(map->values[i]));
+	}
+	free(map->values);
+}
+
 /*
  * Values are copied
  */
@@ -74,7 +85,7 @@ hash_map_put(hash_map *map, char *key, off_t *value)
 {
 	int status;
 	off_t *f_value;
-	key_value *kv = malloc(sizeof(*kv));
+	key_value kv = {.key = key, .value = value};
 
 	if (find(map, key, &f_value) == 0) {
 		*f_value = *value;
@@ -84,10 +95,7 @@ hash_map_put(hash_map *map, char *key, off_t *value)
 	if ((map->num_elems + 1) > (pow(2,map->dimension)))
 		resize(map, 1);
 
-	kv->key = key;
-	kv->value = value;
-
-	status = sl_list_push(&(map->values[get_index(map, key)]), kv);
+	status = sl_list_push(&(map->values[get_index(map, key)]), &kv);
 	if (status == 0)
 		map->num_elems++;
 	return status;
