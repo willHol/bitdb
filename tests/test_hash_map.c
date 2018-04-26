@@ -6,7 +6,7 @@
 #include "unity.h"
 #include "hash_map.h"
 
-extern bool malloc_works;
+extern bool alloc_works;
 
 void
 test_init(void)
@@ -113,14 +113,46 @@ test_keys_overwritten(void)
 	TEST_ASSERT_EQUAL(value_2, *value);
 }
 
+void
+test_get_non_existent_key(void)
+{
+	int result;
+	off_t *value;
+	hash_map map;
+	hash_map_init(&map);
+
+	result = hash_map_get(&map, "key", &value);
+	TEST_ASSERT_EQUAL(-1, result);
+	TEST_ASSERT_NULL(value);
+}
+
+void
+test_init_malloc_fail(void)
+{
+	alloc_works = false;
+
+	int result;
+	hash_map map;
+	
+	result = hash_map_init(&map);
+	TEST_ASSERT_EQUAL(-1, result);
+	TEST_ASSERT_NULL(map.values);
+
+	alloc_works = true;
+}
+
 int
 main(void)
 {
 	UNITY_BEGIN();
+		/* Basic functionality */
 		RUN_TEST(test_init);
 		RUN_TEST(test_put_and_get);
 		RUN_TEST(test_resize_works);
 		RUN_TEST(test_keys_overwritten);
+		RUN_TEST(test_get_non_existent_key);
+		/* Edge cases */
+		RUN_TEST(test_init_malloc_fail);
 	return UNITY_END();
 }
 
