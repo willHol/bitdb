@@ -44,9 +44,18 @@ init_connections(void)
 				printf("[ERROR] Failed to create segment file\nERRNO: %ld\n", (long)errno);
 				exit(EXIT_FAILURE);
 			}
-			printf("[INFO] Created segment file %s\n", pathname);
+			printf("[INFO] Created segment file \"%s\"\n", pathname);
 		}
-		printf("[INFO] Opened connection to segment file %s\n", pathname);
+		printf("[INFO] Opened connection to segment file \"%s\"\n", pathname);
+	}
+}
+
+static void
+cleanup(void)
+{
+	for (size_t i = 0; i < NUM_CONNECTIONS; i++) {
+		if (bit_db_destroy_conn(&connections[i]) == -1)
+			printf("[DEBUG] Unable to destroy connection #%ld", (long)i);
 	}
 }
 
@@ -55,6 +64,9 @@ main(int argc, char *argv[])
 {
 	init_connections();	
 	
-	printf("[INFO] Successfully exiting daemon\n");
+	printf("[DEBUG] Cleaning up\n");
+	cleanup();
+	
+	printf("[INFO] Exiting daemon\n");
 	exit(EXIT_SUCCESS);
 }
