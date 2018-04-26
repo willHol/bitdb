@@ -1,6 +1,9 @@
 #pragma once
 #include "hash_map.h"
 
+#define EKEYNOTFOUND 1
+#define EKEYNOTFOUNDDISK 2
+
 typedef struct {
 	int fd;
 	hash_map map;

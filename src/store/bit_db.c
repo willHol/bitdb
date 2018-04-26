@@ -102,6 +102,9 @@ bit_db_get(bit_db_conn *conn, char *key, void *value)
 	size_t data_size;
 
 	hash_map_get(&conn->map, key, &base_off);
+	if (base_off == NULL)
+		return EKEYNOTFOUND;
+	
 	data_off = *base_off + 2*sizeof(size_t) + key_size;
 
 	/* We need to also read the key from disk, that way
@@ -118,7 +121,7 @@ bit_db_get(bit_db_conn *conn, char *key, void *value)
 		return -1;
 
 	if (strcmp(key, read_key) != 0)
-		return -1;
+		return EKEYNOTFOUND;
 	
 	/* Read the data */
 	if(pread(conn->fd, value, data_size, data_off) == -1)

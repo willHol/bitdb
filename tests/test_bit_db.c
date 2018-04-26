@@ -77,6 +77,24 @@ test_put_get(void)
 }
 
 void
+test_get_non_existent_key(void)
+{
+	int result;
+        size_t value;
+	char name[NAME_LEN];
+        bit_db_conn conn;
+        rand_db_name(name);
+        bit_db_init(name);
+	bit_db_connect(&conn, name);
+
+	result = bit_db_get(&conn, "test", &value);
+	TEST_ASSERT_EQUAL(result, EKEYNOTFOUND);	
+
+	bit_db_destroy(name);
+        bit_db_destroy_conn(&conn);
+}
+
+void
 test_wrong_magic_seq(void)
 {
 	
@@ -90,7 +108,8 @@ main(void)
 	UNITY_BEGIN();
 		RUN_TEST(test_init);
 		RUN_TEST(test_connect);
-		RUN_TEST(test_put_get);		
+		RUN_TEST(test_put_get);
+		RUN_TEST(test_get_non_existent_key);	
 	return UNITY_END();
 }
 

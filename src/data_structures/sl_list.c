@@ -112,7 +112,7 @@ sl_list_find(sl_list *list, char *key, off_t **value)
 {
 	sl_node *u;
 
-	if (list->num_elems == 0) {
+	if (list == NULL || list->num_elems == 0) {
 		*value = NULL;
 		return -1;
 	}
