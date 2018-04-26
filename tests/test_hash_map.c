@@ -4,8 +4,6 @@
 #include "unity.h"
 #include "hash_map.h"
 
-#define HASH_MAP_INIT() {hash_map map; hash_map_init(&map);}
-
 void
 test_init(void)
 {
@@ -91,6 +89,26 @@ test_resize_works(void)
 	TEST_ASSERT_EQUAL(index, *value);	
 }
 
+void
+test_keys_overwritten(void)
+{
+	int result;
+	off_t value_1 = 1, value_2 = 2;
+	off_t *value;
+	hash_map map;
+	hash_map_init(&map);
+
+	result = hash_map_put(&map, "key", &value_1);
+	TEST_ASSERT_EQUAL(0, result);
+
+	result = hash_map_put(&map, "key", &value_2);
+	TEST_ASSERT_EQUAL(0, result);
+
+	result = hash_map_get(&map, "key", &value);
+	TEST_ASSERT_EQUAL(0, result);
+	TEST_ASSERT_EQUAL(value_2, *value);
+}
+
 int
 main(void)
 {
@@ -98,6 +116,7 @@ main(void)
 		RUN_TEST(test_init);
 		RUN_TEST(test_put_and_get);
 		RUN_TEST(test_resize_works);
+		RUN_TEST(test_keys_overwritten);
 	return UNITY_END();
 }
 

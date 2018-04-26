@@ -28,10 +28,22 @@ resize(hash_map *map, size_t dim_change)
 	size_t dim_new = map->dimension + dim_change;
 	sl_list *old_values = map->values;
 	sl_list *new_values = calloc(pow(2,dim_new), sizeof(sl_list));
-	memcpy(new_values, map->values, pow(2,map->dimension) * sizeof(sl_list));
+	sl_list list;
+	sl_node *prev_node, *node;
 	
 	map->values = new_values;
 	map->dimension = dim_new;
+	map->num_elems = 0;
+	for (size_t i = 0; i < pow(2,map->dimension - dim_change); i++) {
+		list = old_values[i];
+		for (node = list.head; node != NULL; node = node->next) {
+			hash_map_put(map, node->kv->key, node->kv->value);
+			free(node->kv->key);
+			free(node->kv->value);
+			free(node->kv);
+		}	
+	}
+	free(old_values);
 }
 
 static int
