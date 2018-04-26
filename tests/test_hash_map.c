@@ -1,8 +1,12 @@
 #include <sys/types.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdbool.h>
+#include <errno.h>
 #include "unity.h"
 #include "hash_map.h"
+
+extern bool malloc_works;
 
 void
 test_init(void)
