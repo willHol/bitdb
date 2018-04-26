@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-Iinclude -Ideps/Unity/src
+CFLAGS=-Iinclude -Ideps/Unity/src -g
 LIBS = -lm
 DEPS = bit_bd.h hash_map.h sl_list.h
 OBJ = src/data_structures/hash_map.o src/data_structures/sl_list.o
