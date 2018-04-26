@@ -28,18 +28,45 @@ bit_db_init(const char *pathname)
 	return 0;
 }
 
-bit_db_conn *
-bit_db_connect(const char *pathname)
+int
+bit_db_destroy(const char *pathname)
 {
-	bit_db_conn *conn = malloc(sizeof(*conn));
+	int fd;
+        int flags = O_WRONLY | O_CREAT | O_TRUNC;
+        mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP;
+
+        pathname = pathname != NULL ? pathname : default_name;
+        if ((fd = open(pathname, flags, mode)) == -1)
+                return -1;
+        if (unlink(pathname) == -1)
+		return -1;
+	if (close(fd) == -1)
+                return -1;
+        return 0;
+}
+
+int
+bit_db_destroy_conn(bit_db_conn *conn)
+{
+	return hash_map_destroy(&conn->map);
+}
+
+int
+bit_db_connect(bit_db_conn *conn, const char *pathname)
+{
 	int flags = O_RDWR | O_APPEND;
-	
+	unsigned long read_magic_seq;
+
 	pathname = pathname != NULL ? pathname : default_name;
 	if ((conn->fd = open(pathname, flags)) == -1)
-		return NULL;
-	
+		return -1;
+	if (read(conn->fd, &read_magic_seq, sizeof(unsigned long)) == -1)
+		return -1;
+	if (read_magic_seq != magic_seq)
+		return -1;
+
 	hash_map_init(&conn->map);
-	return conn;
+	return 0;
 }
 
 /*
@@ -55,7 +82,7 @@ bit_db_put(bit_db_conn *conn, char *key, void *value, size_t bytes)
 
 	struct iovec iov[] = {
 		{.iov_base = (void *)&key_len, .iov_len = sizeof(size_t)},
-		{.iov_base = (void *)key, .iov_len = key_len},
+		{.iov_base = (void *)key, .iov_len = key_len + 1},
 		{.iov_base = (void *)&bytes, .iov_len = sizeof(size_t)},
 		{.iov_base = value, .iov_len = bytes}
 	};
@@ -82,7 +109,7 @@ bit_db_get(bit_db_conn *conn, char *key, void *value)
 	 * actually exist at the specified offset
 	 */
 	struct iovec iov[] = {
-		{.iov_base = read_key, .iov_len = key_size},
+		{.iov_base = read_key, .iov_len = key_size + 1},
 		{.iov_base = &data_size, .iov_len = sizeof(data_size)}	
 	};
 
