@@ -56,7 +56,7 @@ bit_db_destroy_conn(bit_db_conn *conn)
 int
 bit_db_connect(bit_db_conn *conn, const char *pathname)
 {
-	int status = -1;
+	int status;
 	int flags = O_RDWR | O_APPEND;
 	unsigned long read_magic_seq;
 	char table_pathname[strlen(pathname) + 3];
@@ -78,7 +78,7 @@ bit_db_connect(bit_db_conn *conn, const char *pathname)
 	strcpy(conn->pathname, pathname);
 	status = bit_db_retrieve_table(conn);
 
-	return (status == 0) ? status : hash_map_init(&conn->map);
+	return (status == 0) ? 0 : hash_map_init(&conn->map);
 }
 
 /*
@@ -110,7 +110,7 @@ bit_db_get(bit_db_conn *conn, char *key, void *value)
 {
 	off_t *base_off, data_off;
 	size_t key_size = strlen(key) + 1;
-	char read_key[key_size];
+	char read_key[key_size - 1];
 	size_t data_size;
 
 	hash_map_get(&conn->map, key, &base_off);
@@ -125,7 +125,7 @@ bit_db_get(bit_db_conn *conn, char *key, void *value)
 	 */
 	struct iovec iov[] = {
 		{.iov_base = read_key, .iov_len = key_size},
-		{.iov_base = &data_size, .iov_len = sizeof(data_size)}	
+		{.iov_base = &data_size, .iov_len = sizeof(size_t)}	
 	};
 
 	/* Read the key and data size */

@@ -70,6 +70,8 @@ init_connections(void)
 				printf("[ERROR] Failed to create segment file\nERRNO: %ld\n", (long)errno);
 				exit(EXIT_FAILURE);
 			}
+			if (bit_db_connect(&connections[i], pathname) == -1)
+				exit(EXIT_FAILURE);
 			printf("[INFO] Created segment file \"%s\"\n", pathname);
 		}
 		printf("[INFO] Opened connection to segment file \"%s\"\n", pathname);
@@ -104,10 +106,12 @@ main(int argc, char *argv[])
 	//
 	//}
 	char value[5];	
+	int result;
 	bit_db_get(&connections[0], "key", value);
 	printf("GOT: %s\n", value);
 	
-	bit_db_put(&connections[0], "key", "value", 6);
+	result = bit_db_put(&connections[0], "key", "value", 6);
+	result = bit_db_put(&connections[0], "key2", "value2", 7);
 
 	if (bit_db_persist_table(&connections[0]) == -1)
 		printf("[INFO] Failed to persist connection\n");

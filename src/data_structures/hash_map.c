@@ -69,6 +69,8 @@ hash_map_init(hash_map *map)
 int
 hash_map_destroy(hash_map *map)
 {
+	if (map == NULL)
+		return 0;
 	if (map->values == NULL)
 		return 0;
 
@@ -133,7 +135,14 @@ hash_map_read(FILE *fp, hash_map *map)
 		goto RETURN;
 	}
 
-	map->values = calloc(2, sizeof(sl_list));
+	/* Sanity check */
+	if (map->num_elems < pow(2,map->dimension - 1)) {
+		result = -1;
+		map = NULL;
+		goto RETURN;
+	}
+
+	map->values = calloc(pow(2,map->dimension), sizeof(sl_list));
         if (map->values == NULL) {
 		result = -1;
                 goto RETURN;
@@ -148,10 +157,9 @@ hash_map_read(FILE *fp, hash_map *map)
 		}
 
 		list->head = (list->head == NULL) ? NULL : malloc(sizeof(sl_node));
-		list->tail = list->head;
 		node = list->head;
-		
-		for (size_t i = 0; i < list->num_elems, node != NULL; i++) {
+
+		for (size_t i = 0; i < list->num_elems; i++) {
 			if (fread(&key_length, sizeof(size_t), 1, fp) == 0) {
 				result = -1;
                 		goto RETURN;
@@ -182,7 +190,7 @@ hash_map_read(FILE *fp, hash_map *map)
 	
 			if (i == list->num_elems - 1)
 				list->tail = node;
-
+			
 			prev_node = node;
 			node = NULL;
 		}
@@ -191,7 +199,8 @@ hash_map_read(FILE *fp, hash_map *map)
 RETURN:
 	if (result != 0) {
 		// TODO: This is probably broken
-		return hash_map_destroy(map);
+		hash_map_destroy(map);
+		return -1;
 	}
 	else {
 		return 0;
