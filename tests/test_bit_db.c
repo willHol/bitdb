@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <string.h>
+#include <errno.h>
 #include "unity.h"
 #include "bit_db.h"
 
@@ -97,7 +98,18 @@ test_get_non_existent_key(void)
 void
 test_wrong_magic_seq(void)
 {
+	int result;
+	char name[NAME_LEN];
+        char cmd[NAME_LEN + 6];
+	bit_db_conn conn;
+        rand_db_name(name);
+	bit_db_init(name);
+
+	result = bit_db_connect(&conn, name);
+	TEST_ASSERT_EQUAL(-1, result);
+	TEST_ASSERT_EQUAL(EMAGICSEQ, errno);
 	
+	bit_db_destroy_conn(&conn);
 }
 
 int
@@ -109,7 +121,8 @@ main(void)
 		RUN_TEST(test_init);
 		RUN_TEST(test_connect);
 		RUN_TEST(test_put_get);
-		RUN_TEST(test_get_non_existent_key);	
+		RUN_TEST(test_get_non_existent_key);
+		//RUN_TEST(test_wrong_magic_seq);	
 	return UNITY_END();
 }
 

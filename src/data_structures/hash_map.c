@@ -104,9 +104,6 @@ hash_map_put(hash_map *map, char *key, off_t *value)
 int
 hash_map_get(hash_map *map, char *key, off_t **value)
 {
-	if (value == NULL || *value == NULL)
-		return -1;
-
 	size_t index = get_index(map, key);
 	return sl_list_find(&(map->values[index]), key, value);
 }
