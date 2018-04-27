@@ -115,8 +115,10 @@ bit_db_get(bit_db_conn *conn, char *key, void *value)
 	size_t data_size;
 
 	hash_map_get(&conn->map, key, &base_off);
-	if (base_off == NULL)
-		return EKEYNOTFOUND;
+	if (base_off == NULL) {
+		errno = EKEYNOTFOUND;
+		return -1;
+	}
 	
 	data_off = *base_off + 2*sizeof(size_t) + key_size;
 
