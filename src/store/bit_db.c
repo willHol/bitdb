@@ -2,6 +2,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
+#include <limits.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
@@ -71,8 +72,8 @@ bit_db_connect(bit_db_conn *conn, const char *pathname)
 		return -1;
 	}
 
-	hash_map_init(&conn->map);
-	return 0;
+	strcpy(conn->pathname, pathname);
+	return hash_map_init(&conn->map);
 }
 
 /*
@@ -131,6 +132,32 @@ bit_db_get(bit_db_conn *conn, char *key, void *value)
 	
 	/* Read the data */
 	if(pread(conn->fd, value, data_size, data_off) == -1)
+		return -1;
+
+	return 0;
+}
+
+/* 
+ * Save the hash table to a appropriately named file
+ * Append a check sum so we can verify the validity
+ * upon loading.
+ */
+int
+bit_db_persist_conn(bit_db_conn *conn)
+{
+	FILE *tb;
+	char pathname[_POSIX_PATH_MAX];
+
+	strcpy(pathname, conn->pathname);
+	strcat(pathname, ".tb");
+
+	if((tb = fopen(pathname, "w")) == NULL)
+		return -1;
+
+	if (hash_map_write(tb, &conn->map) == -1)
+		return -1;
+
+	if (fclose(tb) == -1)
 		return -1;
 
 	return 0;

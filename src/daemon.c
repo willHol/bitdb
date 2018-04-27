@@ -100,9 +100,16 @@ main(int argc, char *argv[])
 	// TODO: becomeDaemon
 	
 	/* Receive queries and respond to them */
-	for (;run;) {
+	//for (;run;) {
+	//
+	//}
 	
-	}
+	bit_db_put(&connections[0], "key", "value", 6);
+	
+	if (bit_db_persist_conn(&connections[0]) == -1)
+		printf("[INFO] Failed to persist connection\n");
+	else
+		printf("[INFO] Successfully persisted connection\n");
 
 	printf("[DEBUG] Cleaning up\n");
 	cleanup();

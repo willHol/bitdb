@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <math.h>
 #include <sys/types.h>
@@ -75,6 +76,39 @@ hash_map_destroy(hash_map *map)
 		sl_list_destroy(&(map->values[i]));
 	}
 	free(map->values);
+}
+
+// TODO: Optimise this, alignment and not persisting unecessary fields
+int
+hash_map_write(FILE *tb, hash_map *map)
+{
+	sl_list list;
+	sl_node *node;
+	char *key;
+	off_t *value;
+
+	if (fwrite(map, sizeof(hash_map), 1, tb) == 0)
+		return -1;
+
+	for (size_t i = 0; i < pow(2,map->dimension); i++) {
+		list = map->values[i];
+
+		if (fwrite(&list, sizeof(sl_list), 1, tb) == 0)
+			return -1;
+		
+		for (node = list.head; node != NULL; node = node->next) {
+			/* sl_node and key_value only contain pointers so ignore them */
+			key = node->kv->key;
+			value = node->kv->value;
+
+			if (fwrite(key, strlen(key) + 1, 1, tb) == 0)
+				return -1;
+
+			if (fwrite(value, sizeof(off_t), 1, tb) == 0)
+				return -1;
+		}
+	}
+	return 0;
 }
 
 /*

@@ -11,6 +11,7 @@
  *
  */
 #pragma once
+#include <stdio.h>
 #include <sys/types.h>
 #include "sl_list.h"
 
@@ -36,6 +37,9 @@ hash_map_init(hash_map *map);
 
 int
 hash_map_destroy(hash_map *map);
+
+int
+hash_map_write(FILE *tb, hash_map *map);
 
 int
 hash_map_put(hash_map *map, char *key, off_t *value);

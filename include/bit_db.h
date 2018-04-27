@@ -1,4 +1,5 @@
 #pragma once
+#include <limits.h>
 #include "hash_map.h"
 
 #define EKEYNOTFOUND 1
@@ -7,6 +8,7 @@
 
 typedef struct {
 	int fd;
+	char pathname[_POSIX_PATH_MAX];
 	hash_map map;
 } bit_db_conn;
 
@@ -27,4 +29,7 @@ bit_db_put(bit_db_conn *conn, char *key, void *value, size_t bytes);
 
 int
 bit_db_get(bit_db_conn *conn, char *key, void *value);
+
+int
+bit_db_persist_conn(bit_db_conn *conn);
 
