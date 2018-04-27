@@ -103,14 +103,17 @@ main(int argc, char *argv[])
 	//for (;run;) {
 	//
 	//}
+	char value[5];	
+	bit_db_get(&connections[0], "key", value);
+	printf("GOT: %s\n", value);
 	
 	bit_db_put(&connections[0], "key", "value", 6);
-	
+
 	if (bit_db_persist_table(&connections[0]) == -1)
 		printf("[INFO] Failed to persist connection\n");
 	else
 		printf("[INFO] Successfully persisted connection\n");
-
+	
 	printf("[DEBUG] Cleaning up\n");
 	cleanup();
 	

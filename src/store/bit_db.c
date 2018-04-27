@@ -75,12 +75,9 @@ bit_db_connect(bit_db_conn *conn, const char *pathname)
 		return -1;
 	}
 
-	strcpy(table_pathname, pathname);
-	strcat(table_pathname, ".tb");
-	if ((fp = fopen(table_pathname, "r")) != NULL)
-		status = bit_db_retrieve_table(conn, fp);
-
 	strcpy(conn->pathname, pathname);
+	status = bit_db_retrieve_table(conn);
+
 	return (status == 0) ? status : hash_map_init(&conn->map);
 }
 
@@ -93,11 +90,11 @@ int
 bit_db_put(bit_db_conn *conn, char *key, void *value, size_t bytes)
 {
 	off_t off = lseek(conn->fd, 0, SEEK_END);
-	size_t key_len = strlen(key);
+	size_t key_len = strlen(key) + 1;
 
 	struct iovec iov[] = {
 		{.iov_base = (void *)&key_len, .iov_len = sizeof(size_t)},
-		{.iov_base = (void *)key, .iov_len = key_len + 1},
+		{.iov_base = (void *)key, .iov_len = key_len},
 		{.iov_base = (void *)&bytes, .iov_len = sizeof(size_t)},
 		{.iov_base = value, .iov_len = bytes}
 	};
@@ -112,7 +109,7 @@ int
 bit_db_get(bit_db_conn *conn, char *key, void *value)
 {
 	off_t *base_off, data_off;
-	size_t key_size = strlen(key);
+	size_t key_size = strlen(key) + 1;
 	char read_key[key_size];
 	size_t data_size;
 
@@ -127,7 +124,7 @@ bit_db_get(bit_db_conn *conn, char *key, void *value)
 	 * actually exist at the specified offset
 	 */
 	struct iovec iov[] = {
-		{.iov_base = read_key, .iov_len = key_size + 1},
+		{.iov_base = read_key, .iov_len = key_size},
 		{.iov_base = &data_size, .iov_len = sizeof(data_size)}	
 	};
 
@@ -171,9 +168,24 @@ bit_db_persist_table(bit_db_conn *conn)
 	return 0;
 }
 
-static int
-bit_db_retrieve_table(bit_db_conn *conn, FILE *fp)
+int
+bit_db_retrieve_table(bit_db_conn *conn)
 {
-	return hash_map_read(fp, &conn->map);
+	FILE *fp;
+	char pathname[_POSIX_PATH_MAX];
+
+	strcpy(pathname, conn->pathname);
+	strcat(pathname, ".tb");
+
+	if ((fp = fopen(pathname, "r")) == NULL)
+		return -1;
+
+	if (hash_map_read(fp, &conn->map) == -1)
+		return -1;
+
+	if (fclose(fp) == -1)
+		return -1;
+
+	return 0;
 }
 

@@ -101,13 +101,13 @@ hash_map_write(FILE *tb, hash_map *map)
 			/* sl_node and key_value only contain pointers so ignore them */
 			key = node->kv->key;
 			value = node->kv->value;
-			key_length = strlen(key);
+			key_length = strlen(key) + 1;
 
 			/* Write the key length first */
 			if (fwrite(&key_length, sizeof(size_t), 1, tb) == 0)
 				return -1;
 
-			if (fwrite(key, strlen(key) + 1, 1, tb) == 0)
+			if (fwrite(key, key_length, 1, tb) == 0)
 				return -1;
 
 			if (fwrite(value, sizeof(off_t), 1, tb) == 0)
@@ -118,11 +118,11 @@ hash_map_write(FILE *tb, hash_map *map)
 }
 
 int
-hash_map_read(FILE fp, hash_map *map)
+hash_map_read(FILE *fp, hash_map *map)
 {
 	int result = 0;
 	sl_list *list;
-	sl_node *node, *prev_node = NULL;
+	sl_node *node = NULL, *prev_node = NULL;
 	key_value *kv;
 	char *key;
 	off_t *value;
@@ -148,26 +148,27 @@ hash_map_read(FILE fp, hash_map *map)
 		}
 
 		list->head = (list->head == NULL) ? NULL : malloc(sizeof(sl_node));
-		list->tail = (list->tail == NULL) ? NULL : malloc(sizeof(sl_node));
-		
+		list->tail = list->head;
 		node = list->head;
+		
 		for (size_t i = 0; i < list->num_elems, node != NULL; i++) {
 			if (fread(&key_length, sizeof(size_t), 1, fp) == 0) {
 				result = -1;
                 		goto RETURN;
 			}
 
-			node = malloc(sizeof(sl_node));
+			node = (node != NULL) ? node : malloc(sizeof(sl_node));
 			kv = malloc(sizeof(key_value));
 			key = malloc(sizeof(key_length) + 1);
 			value = malloc(sizeof(off_t));
+			node->next = NULL;
 
-			if (fread(key, sizeof(*key), 1, fp) == 0) {
+			if (fread(key, key_length, 1, fp) == 0) {
 				result = -1;
                 		goto RETURN;
 			}
 			
-			if (fread(value, sizeof(*value), 1, fp) == 0) {
+			if (fread(value, sizeof(off_t), 1, fp) == 0) {
 				result = -1;
                 		goto RETURN;
 			}
@@ -178,8 +179,12 @@ hash_map_read(FILE fp, hash_map *map)
 			
 			if (prev_node != NULL)
 				prev_node->next = node;
+	
+			if (i == list->num_elems - 1)
+				list->tail = node;
 
 			prev_node = node;
+			node = NULL;
 		}
 	}
 

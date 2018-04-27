@@ -42,7 +42,7 @@ int
 hash_map_write(FILE *tb, hash_map *map);
 
 int
-hash_map_read(FILE fp, hash_map *map);
+hash_map_read(FILE *fp, hash_map *map);
 
 int
 hash_map_put(hash_map *map, char *key, off_t *value);
