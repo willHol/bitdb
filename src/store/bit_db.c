@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#include "sha256.h"
 #include "hash_map.h"
 #include "bit_db.h"
 
@@ -153,15 +154,31 @@ bit_db_persist_table(bit_db_conn *conn)
 	FILE *tb;
 	char pathname[_POSIX_PATH_MAX];
 
+#define BUF_SIZE 1024
+	SHA256_CTX ctx;
+	const BYTE buf[BUF_SIZE];
+	BYTE hash[SHA256_BLOCK_SIZE];
+	size_t bytes;
+
 	strcpy(pathname, conn->pathname);
 	strcat(pathname, ".tb");
 
-	if((tb = fopen(pathname, "w")) == NULL)
+	if((tb = fopen(pathname, "wr")) == NULL)
 		return -1;
 
 	if (hash_map_write(tb, &conn->map) == -1)
 		return -1;
 
+	/* Attach a checksum */
+	// TODO: Optimise so it's not reading the file back
+	sha256_init(&ctx);
+	while((bytes = fread((void *)buf, 1, BUF_SIZE, tb)) != 0)
+		sha256_update(&ctx, buf, BUF_SIZE);
+	sha256_final(&ctx, hash);
+
+	if (fwrite(hash, 1, SHA256_BLOCK_SIZE, tb) == -1)
+		return -1;
+	
 	if (fclose(tb) == -1)
 		return -1;
 
