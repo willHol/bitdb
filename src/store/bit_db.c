@@ -143,6 +143,20 @@ bit_db_get(bit_db_conn *conn, char *key, void *value)
 	return 0;
 }
 
+#define BUF_SIZE 1024
+static void
+hash_file(FILE *fp, BYTE hash[])
+{
+	SHA256_CTX ctx;
+        const BYTE buf[BUF_SIZE];
+        size_t bytes;
+
+	sha256_init(&ctx);
+        while((bytes = fread((void *)buf, 1, BUF_SIZE, fp)) != 0)
+                sha256_update(&ctx, buf, BUF_SIZE);
+        sha256_final(&ctx, hash);
+}
+
 /* 
  * Save the hash table to a appropriately named file
  * Append a check sum so we can verify the validity
@@ -153,12 +167,7 @@ bit_db_persist_table(bit_db_conn *conn)
 {
 	FILE *tb;
 	char pathname[_POSIX_PATH_MAX];
-
-#define BUF_SIZE 1024
-	SHA256_CTX ctx;
-	const BYTE buf[BUF_SIZE];
 	BYTE hash[SHA256_BLOCK_SIZE];
-	size_t bytes;
 
 	strcpy(pathname, conn->pathname);
 	strcat(pathname, ".tb");
@@ -171,10 +180,7 @@ bit_db_persist_table(bit_db_conn *conn)
 
 	/* Attach a checksum */
 	// TODO: Optimise so it's not reading the file back
-	sha256_init(&ctx);
-	while((bytes = fread((void *)buf, 1, BUF_SIZE, tb)) != 0)
-		sha256_update(&ctx, buf, BUF_SIZE);
-	sha256_final(&ctx, hash);
+	hash_file(tb, hash);
 
 	if (fwrite(hash, 1, SHA256_BLOCK_SIZE, tb) == -1)
 		return -1;
@@ -190,6 +196,8 @@ bit_db_retrieve_table(bit_db_conn *conn)
 {
 	FILE *fp;
 	char pathname[_POSIX_PATH_MAX];
+	BYTE read_hash[SHA256_BLOCK_SIZE];
+	BYTE attached_hash[SHA256_BLOCK_SIZE];
 
 	strcpy(pathname, conn->pathname);
 	strcat(pathname, ".tb");
@@ -199,7 +207,16 @@ bit_db_retrieve_table(bit_db_conn *conn)
 
 	if (hash_map_read(fp, &conn->map) == -1)
 		return -1;
+	
+	if (fseek(fp, -SHA256_BLOCK_SIZE, SEEK_END) == -1)
+		return -1;
+	if (fread(attached_hash, 1, SHA256_BLOCK_SIZE, fp) == -1)
+		return -1;
 
+	hash_file(fp, read_hash);
+	if (memcmp(read_hash, attached_hash, SHA256_BLOCK_SIZE) != 0)
+		return -1;
+	
 	if (fclose(fp) == -1)
 		return -1;
 
