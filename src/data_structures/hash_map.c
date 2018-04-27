@@ -86,6 +86,7 @@ hash_map_write(FILE *tb, hash_map *map)
 	sl_node *node;
 	char *key;
 	off_t *value;
+	size_t key_length;
 
 	if (fwrite(map, sizeof(hash_map), 1, tb) == 0)
 		return -1;
@@ -100,6 +101,11 @@ hash_map_write(FILE *tb, hash_map *map)
 			/* sl_node and key_value only contain pointers so ignore them */
 			key = node->kv->key;
 			value = node->kv->value;
+			key_length = strlen(key);
+
+			/* Write the key length first */
+			if (fwrite(&key_length, sizeof(size_t), 1, tb) == 0)
+				return -1;
 
 			if (fwrite(key, strlen(key) + 1, 1, tb) == 0)
 				return -1;
@@ -109,6 +115,82 @@ hash_map_write(FILE *tb, hash_map *map)
 		}
 	}
 	return 0;
+}
+
+int
+hash_map_read(FILE fp, hash_map *map)
+{
+	int result = 0;
+	sl_list *list;
+	sl_node *node, *prev_node = NULL;
+	key_value *kv;
+	char *key;
+	off_t *value;
+	size_t key_length;
+
+	if (fread(map, sizeof(hash_map), 1, fp) == 0) {
+		result = -1;
+		goto RETURN;
+	}
+
+	map->values = calloc(2, sizeof(sl_list));
+        if (map->values == NULL) {
+		result = -1;
+                goto RETURN;
+	}
+
+	for (size_t i = 0; i < pow(2,map->dimension); i++) {
+		list = &map->values[i];
+		
+		if (fread(list, sizeof(sl_list), 1, fp) == 0) {
+			result = -1;
+                	goto RETURN;
+		}
+
+		list->head = (list->head == NULL) ? NULL : malloc(sizeof(sl_node));
+		list->tail = (list->tail == NULL) ? NULL : malloc(sizeof(sl_node));
+		
+		node = list->head;
+		for (size_t i = 0; i < list->num_elems, node != NULL; i++) {
+			if (fread(&key_length, sizeof(size_t), 1, fp) == 0) {
+				result = -1;
+                		goto RETURN;
+			}
+
+			node = malloc(sizeof(sl_node));
+			kv = malloc(sizeof(key_value));
+			key = malloc(sizeof(key_length) + 1);
+			value = malloc(sizeof(off_t));
+
+			if (fread(key, sizeof(*key), 1, fp) == 0) {
+				result = -1;
+                		goto RETURN;
+			}
+			
+			if (fread(value, sizeof(*value), 1, fp) == 0) {
+				result = -1;
+                		goto RETURN;
+			}
+
+			kv->key = key;
+			kv->value = value;
+			node->kv = kv;
+			
+			if (prev_node != NULL)
+				prev_node->next = node;
+
+			prev_node = node;
+		}
+	}
+
+RETURN:
+	if (result != 0) {
+		// TODO: This is probably broken
+		return hash_map_destroy(map);
+	}
+	else {
+		return 0;
+	}
 }
 
 /*

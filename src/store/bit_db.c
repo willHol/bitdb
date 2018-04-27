@@ -56,8 +56,11 @@ bit_db_destroy_conn(bit_db_conn *conn)
 int
 bit_db_connect(bit_db_conn *conn, const char *pathname)
 {
+	int status = -1;
 	int flags = O_RDWR | O_APPEND;
 	unsigned long read_magic_seq;
+	char table_pathname[strlen(pathname) + 3];
+	FILE *fp;
 
 	pathname = pathname != NULL ? pathname : default_name;
 	if ((conn->fd = open(pathname, flags)) == -1) {
@@ -72,8 +75,13 @@ bit_db_connect(bit_db_conn *conn, const char *pathname)
 		return -1;
 	}
 
+	strcpy(table_pathname, pathname);
+	strcat(table_pathname, ".tb");
+	if ((fp = fopen(table_pathname, "r")) != NULL)
+		status = bit_db_retrieve_table(conn, fp);
+
 	strcpy(conn->pathname, pathname);
-	return hash_map_init(&conn->map);
+	return (status == 0) ? status : hash_map_init(&conn->map);
 }
 
 /*
@@ -143,7 +151,7 @@ bit_db_get(bit_db_conn *conn, char *key, void *value)
  * upon loading.
  */
 int
-bit_db_persist_conn(bit_db_conn *conn)
+bit_db_persist_table(bit_db_conn *conn)
 {
 	FILE *tb;
 	char pathname[_POSIX_PATH_MAX];
@@ -161,5 +169,11 @@ bit_db_persist_conn(bit_db_conn *conn)
 		return -1;
 
 	return 0;
+}
+
+static int
+bit_db_retrieve_table(bit_db_conn *conn, FILE *fp)
+{
+	return hash_map_read(fp, &conn->map);
 }
 

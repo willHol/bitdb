@@ -106,7 +106,7 @@ main(int argc, char *argv[])
 	
 	bit_db_put(&connections[0], "key", "value", 6);
 	
-	if (bit_db_persist_conn(&connections[0]) == -1)
+	if (bit_db_persist_table(&connections[0]) == -1)
 		printf("[INFO] Failed to persist connection\n");
 	else
 		printf("[INFO] Successfully persisted connection\n");

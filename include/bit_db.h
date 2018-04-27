@@ -31,5 +31,8 @@ int
 bit_db_get(bit_db_conn *conn, char *key, void *value);
 
 int
-bit_db_persist_conn(bit_db_conn *conn);
+bit_db_persist_table(bit_db_conn *conn);
+
+int
+bit_db_retrieve_table(bit_db_conn *conn);
 
