@@ -6,6 +6,7 @@
 #include <signal.h>
 #include <dirent.h>
 #include <string.h>
+#include <regex.h>
 #include "sl_list.h"
 #include "bit_db.h"
 
@@ -28,14 +29,20 @@ static size_t num_segments;
 static size_t
 count_num_segments()
 {
-	size_t count = -2; /* . and .. */
+	size_t count = 0;
 	struct dirent *dir;
 	DIR *dirp = opendir(DIRECTORY);
+	regex_t regex;
 
-	while ((dir = readdir(dirp)) != NULL) {
-		// TODO: Some regex
-		count ++;
-	}
+	/* bit_db001 but not bit_db001.tb */
+	if (regcomp(&regex, "^bit_db[0-9]+$", REG_EXTENDED) != 0)
+		return 0;
+
+	while ((dir = readdir(dirp)) != NULL)
+		if (regexec(&regex, dir->d_name, 0, NULL, 0) == 0)
+			count ++;
+	
+	regfree(&regex);	
 	closedir(dirp);
 	return count;
 }
