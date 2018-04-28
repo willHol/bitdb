@@ -107,7 +107,8 @@ main(int argc, char *argv[])
 	//}
 	char value[5];	
 	int result;
-	bit_db_get(&connections[0], "key", value);
+	if (bit_db_get(&connections[0], "key", value) == -1)
+		printf("file sucks sock!\n");
 	printf("GOT: %s\n", value);
 	
 	result = bit_db_put(&connections[0], "key", "value", 6);

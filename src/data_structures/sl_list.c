@@ -62,9 +62,14 @@ sl_list_destroy(sl_list *list)
 int
 sl_list_destroy_kv(key_value *kv)
 {
-	free(kv->key);
-	free(kv->value);
+	if (kv == NULL)
+		return 0;
+	if (kv->key != NULL)
+		free(kv->key);
+	if (kv->value != NULL)
+		free(kv->value);
 	free(kv);
+	return 0;
 }
 
 int

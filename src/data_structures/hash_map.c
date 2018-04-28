@@ -129,6 +129,9 @@ hash_map_read(FILE *fp, hash_map *map)
 	char *key;
 	off_t *value;
 	size_t key_length;
+	size_t final_length;
+	size_t final_dimension; /* In case destroy is called before all value are
+				   initialised */
 
 	if (fread(map, sizeof(hash_map), 1, fp) == 0) {
 		result = -1;
@@ -148,7 +151,9 @@ hash_map_read(FILE *fp, hash_map *map)
                 goto RETURN;
 	}
 
-	for (size_t i = 0; i < pow(2,map->dimension); i++) {
+	final_dimension = map->dimension;
+	map->dimension = 0;
+	for (size_t i = 0; i < pow(2,final_dimension); i++) {
 		list = &map->values[i];
 		
 		if (fread(list, sizeof(sl_list), 1, fp) == 0) {
@@ -159,7 +164,11 @@ hash_map_read(FILE *fp, hash_map *map)
 		list->head = (list->head == NULL) ? NULL : malloc(sizeof(sl_node));
 		node = list->head;
 
-		for (size_t i = 0; i < list->num_elems; i++) {
+		final_length = list->num_elems;
+		list->num_elems = 0;
+		for (size_t i = 0; i < final_length; i++) {
+			list->num_elems++;
+
 			if (fread(&key_length, sizeof(size_t), 1, fp) == 0) {
 				result = -1;
                 		goto RETURN;
@@ -167,9 +176,13 @@ hash_map_read(FILE *fp, hash_map *map)
 
 			node = (node != NULL) ? node : malloc(sizeof(sl_node));
 			kv = malloc(sizeof(key_value));
-			key = malloc(sizeof(key_length) + 1);
+			key = malloc(sizeof(key_length));
 			value = malloc(sizeof(off_t));
+			
 			node->next = NULL;
+			kv->key = key;
+                        kv->value = value;
+                        node->kv = kv;
 
 			if (fread(key, key_length, 1, fp) == 0) {
 				result = -1;
@@ -181,19 +194,16 @@ hash_map_read(FILE *fp, hash_map *map)
                 		goto RETURN;
 			}
 
-			kv->key = key;
-			kv->value = value;
-			node->kv = kv;
-			
 			if (prev_node != NULL)
 				prev_node->next = node;
 	
-			if (i == list->num_elems - 1)
+			if (i == final_length - 1)
 				list->tail = node;
 			
 			prev_node = node;
 			node = NULL;
 		}
+		map->dimension = log2(list->num_elems);
 	}
 
 RETURN:
