@@ -57,7 +57,7 @@ bit_db_destroy_conn(bit_db_conn *conn)
 int
 bit_db_connect(bit_db_conn *conn, const char *pathname)
 {
-	int status;
+	int status = 0;
 	int flags = O_RDWR | O_APPEND;
 	unsigned long read_magic_seq;
 	char table_pathname[strlen(pathname) + 3];
@@ -196,7 +196,7 @@ bit_db_persist_table(bit_db_conn *conn)
 int
 bit_db_retrieve_table(bit_db_conn *conn)
 {
-	int status;
+	int status = 0;
 	FILE *fp;
 	char pathname[_POSIX_PATH_MAX];
 	BYTE read_hash[SHA256_BLOCK_SIZE];
