@@ -196,6 +196,7 @@ bit_db_persist_table(bit_db_conn *conn)
 int
 bit_db_retrieve_table(bit_db_conn *conn)
 {
+	int status;
 	FILE *fp;
 	char pathname[_POSIX_PATH_MAX];
 	BYTE read_hash[SHA256_BLOCK_SIZE];
@@ -204,24 +205,35 @@ bit_db_retrieve_table(bit_db_conn *conn)
 	strcpy(pathname, conn->pathname);
 	strcat(pathname, ".tb");
 
-	if ((fp = fopen(pathname, "r")) == NULL)
-		return -1;
+	if ((fp = fopen(pathname, "r")) == NULL) {
+		status = -1;
+		goto CLEANUP;
+	}
 
-	if (hash_map_read(fp, &conn->map) == -1)
-		return -1;
+	if (hash_map_read(fp, &conn->map) == -1) {
+		status = -1;
+		goto CLEANUP;
+	}
 	
-	if (fseek(fp, -SHA256_BLOCK_SIZE, SEEK_END) == -1)
-		return -1;
-	if (fread(attached_hash, 1, SHA256_BLOCK_SIZE, fp) == -1)
-		return -1;
+	if (fseek(fp, -SHA256_BLOCK_SIZE, SEEK_END) == -1) {
+		status = -1;
+		goto CLEANUP;
+	}
+	if (fread(attached_hash, 1, SHA256_BLOCK_SIZE, fp) == -1) {
+		status = -1;
+		goto CLEANUP;
+	}
 
 	hash_file(fp, read_hash);
-	if (memcmp(read_hash, attached_hash, SHA256_BLOCK_SIZE) != 0)
-		return -1;
-	
+        if (memcmp(read_hash, attached_hash, SHA256_BLOCK_SIZE) != 0) {
+                status = -1;
+		goto CLEANUP;
+	}
+
+CLEANUP:
 	if (fclose(fp) == -1)
 		return -1;
-
-	return 0;
+	else
+		return status;
 }
 

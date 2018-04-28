@@ -109,7 +109,8 @@ main(int argc, char *argv[])
 	int result;
 	if (bit_db_get(&connections[0], "key", value) == -1)
 		printf("file sucks sock!\n");
-	printf("GOT: %s\n", value);
+	else
+		printf("GOT: %s\n", value);
 	
 	result = bit_db_put(&connections[0], "key", "value", 6);
 	result = bit_db_put(&connections[0], "key2", "value2", 7);
