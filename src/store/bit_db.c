@@ -231,7 +231,7 @@ bit_db_retrieve_table(bit_db_conn *conn)
 	}
 
 CLEANUP:
-	if (fclose(fp) == -1)
+	if (fp != NULL && fclose(fp) == -1)
 		return -1;
 	else
 		return status;
