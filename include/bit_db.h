@@ -2,9 +2,10 @@
 #include <limits.h>
 #include "hash_map.h"
 
-#define EKEYNOTFOUND 1
-#define EKEYNOTFOUNDDISK 2
-#define EMAGICSEQ 3
+#define EKEYNOTFOUND -1
+#define EKEYNOTFOUNDDISK -2
+#define EMAGICSEQ -3
+#define ECHECKSUM -4
 
 typedef struct {
 	int fd;
