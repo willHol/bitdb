@@ -57,13 +57,14 @@ static void
 init_connections(void)
 {
 	num_segments = count_num_segments();
-
 	int result;
 	int conns_num_digits = count_digits(num_segments);
 	char pathname[strlen(NAME_PREFIX) + conns_num_digits];
 	char num_string[conns_num_digits];	
+	size_t segment_count;
 
-	for (size_t i = 0; i < (num_segments || 1); i++) {
+	segment_count = (num_segments > 0) ? num_segments : 1;
+	for (size_t i = 0; i < segment_count; i++) {
 		strcpy(pathname, NAME_PREFIX);
 		sprintf(num_string, "%d", i);
 		strcat(pathname, num_string);
@@ -108,10 +109,11 @@ main(int argc, char *argv[])
 
 	// TODO: becomeDaemon
 	
+	printf("[INFO] Entering loop\n");
 	/* Receive queries and respond to them */
-	//for (;run;) {
-	//
-	//}
+	for (;run;) {
+	
+	}
 	char value[5];	
 	int result;
 	if (bit_db_get(&connections[0], "key", value) == -1)
@@ -122,11 +124,14 @@ main(int argc, char *argv[])
 	result = bit_db_put(&connections[0], "key", "value", 6);
 	result = bit_db_put(&connections[0], "key2", "value2", 7);
 
-	if (bit_db_persist_table(&connections[0]) == -1)
-		printf("[INFO] Failed to persist connection\n");
-	else
-		printf("[INFO] Successfully persisted connection\n");
-	
+
+	for (size_t i = 0; i < num_segments; i++) {
+		if (bit_db_persist_table(&connections[i]) == -1)
+                	printf("[INFO] Failed to persist connection\n");
+        	else
+                	printf("[INFO] Successfully persisted connection\n");
+	}
+
 	printf("[DEBUG] Cleaning up\n");
 	cleanup();
 	
