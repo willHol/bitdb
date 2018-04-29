@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#include "error_functions.h"
 #include "sha256.h"
 #include "hash_map.h"
 #include "bit_db.h"
@@ -23,11 +24,12 @@ bit_db_init(const char *pathname)
 	
 	pathname = pathname != NULL ? pathname : default_name;
 	if ((fd = open(pathname, flags, mode)) == -1)
-		return -1;
+		errExit("open() %s", pathname);
 	if (write(fd, &magic_seq, sizeof(magic_seq)) != sizeof(magic_seq))
-		return -1;
-	if (close(fd) == -1)
-		return -1;
+		errExit("write() %s", pathname);
+	if (close(fd) == -1) {
+		errMsg("close() %s", pathname);
+	}
 	return 0;
 }
 
@@ -65,14 +67,14 @@ bit_db_connect(bit_db_conn *conn, const char *pathname)
 
 	pathname = pathname != NULL ? pathname : default_name;
 	if ((conn->fd = open(pathname, flags)) == -1) {
-		return -1;
+		errExit("open() %s", pathname);
 	}
 	if (read(conn->fd, &read_magic_seq, sizeof(unsigned long)) == -1) {
-		errno = EMAGICSEQ;
-		return -1;
+		errExit("read() %s", pathname);
 	}
 	if (read_magic_seq != magic_seq) {
 		errno = EMAGICSEQ;
+		errMsg("%s", pathname);
 		return -1;
 	}
 
@@ -100,8 +102,10 @@ bit_db_put(bit_db_conn *conn, char *key, void *value, size_t bytes)
 		{.iov_base = value, .iov_len = bytes}
 	};
 
-	if (writev(conn->fd, iov, 4) < 0)
+	if (writev(conn->fd, iov, 4) < 0) {
+		errMsg("writev() %s", conn->pathname);
 		return -1;
+	}
 
 	return hash_map_put(&conn->map, key, &off); 		
 }
@@ -132,15 +136,21 @@ bit_db_get(bit_db_conn *conn, char *key, void *value)
 	};
 
 	/* Read the key and data size */
-	if (preadv(conn->fd, iov, 2, *base_off+sizeof(size_t)) == -1)
+	if (preadv(conn->fd, iov, 2, *base_off+sizeof(size_t)) == -1) {
+		errMsg("preadv() %s", conn->pathname);
 		return -1;
+	}
 
-	if (strcmp(key, read_key) != 0)
-		return EKEYNOTFOUND;
+	if (strcmp(key, read_key) != 0) {
+		errno = EKEYNOTFOUND;
+		return -1;
+	}
 	
 	/* Read the data */
-	if(pread(conn->fd, value, data_size, data_off) == -1)
+	if(pread(conn->fd, value, data_size, data_off) == -1) {
+		errMsg("pread() %s", conn->pathname);
 		return -1;
+	}
 
 	return 0;
 }
@@ -174,8 +184,10 @@ bit_db_persist_table(bit_db_conn *conn)
 	strcpy(pathname, conn->pathname);
 	strcat(pathname, ".tb");
 
-	if((tb = fopen(pathname, "wr")) == NULL)
+	if((tb = fopen(pathname, "wr")) == NULL) {
+		errMsg("fopen() %s", pathname);
 		return -1;
+	}
 
 	if (hash_map_write(tb, &conn->map) == -1)
 		return -1;
@@ -184,11 +196,15 @@ bit_db_persist_table(bit_db_conn *conn)
 	// TODO: Optimise so it's not reading the file back
 	hash_file(tb, hash);
 
-	if (fwrite(hash, 1, SHA256_BLOCK_SIZE, tb) == -1)
+	if (fwrite(hash, 1, SHA256_BLOCK_SIZE, tb) == -1) {
+		errMsg("fwrite() %s", pathname);
 		return -1;
+	}
 	
-	if (fclose(tb) == -1)
+	if (fclose(tb) == -1) {
+		errMsg("fclose() %s", pathname);
 		return -1;
+	}
 
 	return 0;
 }
@@ -206,6 +222,7 @@ bit_db_retrieve_table(bit_db_conn *conn)
 	strcat(pathname, ".tb");
 
 	if ((fp = fopen(pathname, "r")) == NULL) {
+		errMsg("fopen() %s", pathname);
 		status = -1;
 		goto CLEANUP;
 	}
@@ -216,24 +233,32 @@ bit_db_retrieve_table(bit_db_conn *conn)
 	}
 	
 	if (fseek(fp, -SHA256_BLOCK_SIZE, SEEK_END) == -1) {
+		errMsg("fseek() %s", pathname);
 		status = -1;
 		goto CLEANUP;
 	}
 	if (fread(attached_hash, 1, SHA256_BLOCK_SIZE, fp) == -1) {
+		errMsg("fread() %s", pathname);
 		status = -1;
 		goto CLEANUP;
 	}
 
 	hash_file(fp, read_hash);
         if (memcmp(read_hash, attached_hash, SHA256_BLOCK_SIZE) != 0) {
-                status = -1;
+                errno = ECHECKSUM;
+		status = -1;
 		goto CLEANUP;
 	}
 
 CLEANUP:
-	if (fp != NULL && fclose(fp) == -1)
+	if (fp != NULL && fclose(fp) == -1) {
+		errMsg("fclose() %s", pathname);
 		return -1;
-	else
+	}
+	else {
 		return status;
+
+	}
 }
+
 

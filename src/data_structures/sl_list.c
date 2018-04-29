@@ -1,12 +1,17 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#include "error_functions.h"
 #include "sl_list.h"
 
 static sl_node *
 new_node(key_value *kv)
 {
 	sl_node *node = malloc(sizeof(*node));
+	if (node == NULL) {
+		errMsg("malloc() node");
+		return NULL;
+	}
 	
 	/* For the sake of simplicity we will
 	 * duplicate the data, to avoid potential hassle

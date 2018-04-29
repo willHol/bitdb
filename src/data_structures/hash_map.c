@@ -3,6 +3,7 @@
 #include <string.h>
 #include <math.h>
 #include <sys/types.h>
+#include "error_functions.h"
 #include "hash_map.h"
 
 static size_t
@@ -56,8 +57,10 @@ int
 hash_map_init(hash_map *map)
 {
 	map->values = calloc(2, sizeof(sl_list));
-	if (map->values == NULL)
+	if (map->values == NULL) {
+		errMsg("calloc()");
 		return -1;
+	}
 
 	map->dimension = 1;
 	map->random_int = rand();
@@ -90,14 +93,18 @@ hash_map_write(FILE *tb, hash_map *map)
 	off_t *value;
 	size_t key_length;
 
-	if (fwrite(map, sizeof(hash_map), 1, tb) == 0)
+	if (fwrite(map, sizeof(hash_map), 1, tb) == 0) {
+		errMsg("fwrite() map");
 		return -1;
+	}
 
 	for (size_t i = 0; i < pow(2,map->dimension); i++) {
 		list = map->values[i];
 
-		if (fwrite(&list, sizeof(sl_list), 1, tb) == 0)
+		if (fwrite(&list, sizeof(sl_list), 1, tb) == 0) {
+			errMsg("fwrite() list");
 			return -1;
+		}
 		
 		for (node = list.head; node != NULL; node = node->next) {
 			/* sl_node and key_value only contain pointers so ignore them */
@@ -106,14 +113,20 @@ hash_map_write(FILE *tb, hash_map *map)
 			key_length = strlen(key) + 1;
 
 			/* Write the key length first */
-			if (fwrite(&key_length, sizeof(size_t), 1, tb) == 0)
+			if (fwrite(&key_length, sizeof(size_t), 1, tb) == 0) {
+				errMsg("fwrite() key_length");
 				return -1;
+			}
 
-			if (fwrite(key, key_length, 1, tb) == 0)
+			if (fwrite(key, key_length, 1, tb) == 0) {
+				errMsg("fwrite() key");
 				return -1;
+			}
 
-			if (fwrite(value, sizeof(off_t), 1, tb) == 0)
+			if (fwrite(value, sizeof(off_t), 1, tb) == 0) {
+				errMsg("fwrite() value");
 				return -1;
+			}
 		}
 	}
 	return 0;
@@ -134,6 +147,7 @@ hash_map_read(FILE *fp, hash_map *map)
 				   initialised */
 
 	if (fread(map, sizeof(hash_map), 1, fp) == 0) {
+		errMsg("fread() map");
 		result = -1;
 		goto RETURN;
 	}
@@ -147,6 +161,7 @@ hash_map_read(FILE *fp, hash_map *map)
 
 	map->values = calloc(pow(2,map->dimension), sizeof(sl_list));
         if (map->values == NULL) {
+		errMsg("calloc()");
 		result = -1;
                 goto RETURN;
 	}
@@ -157,6 +172,7 @@ hash_map_read(FILE *fp, hash_map *map)
 		list = &map->values[i];
 		
 		if (fread(list, sizeof(sl_list), 1, fp) == 0) {
+			errMsg("fread() list");
 			result = -1;
                 	goto RETURN;
 		}
@@ -170,6 +186,7 @@ hash_map_read(FILE *fp, hash_map *map)
 			list->num_elems++;
 
 			if (fread(&key_length, sizeof(size_t), 1, fp) == 0) {
+				errMsg("fread() key_length");
 				result = -1;
                 		goto RETURN;
 			}
@@ -185,11 +202,13 @@ hash_map_read(FILE *fp, hash_map *map)
                         node->kv = kv;
 
 			if (fread(key, key_length, 1, fp) == 0) {
+				errMsg("fread() key");
 				result = -1;
                 		goto RETURN;
 			}
 			
 			if (fread(value, sizeof(off_t), 1, fp) == 0) {
+				errMsg("fread() value");
 				result = -1;
                 		goto RETURN;
 			}
