@@ -151,6 +151,16 @@ dl_list_pop(dl_list *list, void **x)
 }
 
 int
+dl_list_peek(dl_list *list, void **x)
+{
+	dl_node *u = get_node(list, 0);
+	if (u == NULL)
+		return -1;
+	*x = u->elem;
+	return 0;
+}
+
+int
 dl_list_enqueue(dl_list *list, void *x)
 {
 	return dl_list_add(list, 0, x);

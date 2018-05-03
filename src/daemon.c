@@ -12,8 +12,7 @@
 #include "dl_list.h"
 #include "bit_db.h"
 
-#define MAX_SEGMENT_SIZE 64
-#define MAX_NUM_SEGMENTS 128
+#define MAX_SEGMENT_SIZE 128 // Small for testing purposes
 #define DIRECTORY "db"
 #define NAME_PREFIX "db/bit_db"
 
@@ -92,7 +91,7 @@ init_connections(void)
 			}
 			printf("[INFO] Created segment file \"%s\"\n", pathname);
 		}
-		if (dl_list_add(&connections, i, connection) == -1)
+		if (dl_list_enqueue(&connections, connection) == -1)
 			errExit("dl_list_set()");
 
 		printf("[INFO] Opened connection to segment file \"%s\"\n", pathname);
@@ -122,6 +121,7 @@ cleanup(void)
 		if (conn != NULL)
 			free(conn);
 	}
+	dl_list_destroy(&connections);
 }
 
 static void
@@ -147,6 +147,13 @@ sig_int_handler(int dummy)
 int
 main(int argc, char *argv[])
 {
+	size_t bytes;
+	char value[_POSIX_NAME_MAX];
+	char pathname[_POSIX_NAME_MAX];
+	char num[_POSIX_NAME_MAX];
+	bit_db_conn *connection;
+
+	
 	init_connections();	
 	signal(SIGINT, sig_int_handler);
 
@@ -154,7 +161,39 @@ main(int argc, char *argv[])
 	
 	printf("[INFO] Entering loop\n");
 	while (run) {
-		/* Receive queries and respond to them */	
+		/* Receive queries and respond to them */
+		
+		// The most recently opened connection
+		if (dl_list_peek(&connections, (void **)&connection) == -1)
+			break;
+		if (connection == NULL) {
+			printf("[ERROR] No segments are open\n");
+			break;
+		}
+		// Check if segment is full
+		if (bit_db_connect_full(connection)) {
+			strcpy(pathname, NAME_PREFIX);
+			sprintf(num, "%ld", (long)connections.num_elems);
+			strcat(pathname, num);
+
+			connection = malloc(sizeof(bit_db_conn));
+
+			if (bit_db_init(pathname) == -1) {
+				printf("[ERROR] Failed to create segment file \"%s\"\n", pathname);
+				break;
+			}
+			if (bit_db_connect(connection, pathname) == -1) {
+				printf("[ERROR] Failed to open connection to segment file \"%s\"", pathname);
+				break;
+			}
+			if (dl_list_push(&connections, connection) == -1) {
+				break;
+			}
+			printf("[INFO] Created new segment file.");
+		}
+
+		// For testing
+		run = false;
 	}
 	printf("\n");
 

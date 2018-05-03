@@ -1,5 +1,6 @@
 #pragma once
 #include <limits.h>
+#include <sys/types.h>
 #include "hash_map.h"
 
 #define EKEYNOTFOUND -1
@@ -26,9 +27,12 @@ int
 bit_db_connect(bit_db_conn *conn, const char *pathname);
 
 int
-bit_db_put(bit_db_conn *conn, char *key, void *value, size_t bytes);
+bit_db_connect_full(bit_db_conn *conn);
 
 int
+bit_db_put(bit_db_conn *conn, char *key, void *value, size_t bytes);
+
+size_t
 bit_db_get(bit_db_conn *conn, char *key, void *value);
 
 int

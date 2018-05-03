@@ -37,6 +37,9 @@ int
 dl_list_pop(dl_list *list, void **x);
 
 int
+dl_list_peek(dl_list *list, void **x);
+
+int
 dl_list_enqueue(dl_list *list, void *x);
 
 int

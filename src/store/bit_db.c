@@ -13,6 +13,10 @@
 #include "hash_map.h"
 #include "bit_db.h"
 
+#ifndef MAX_SEGMENT_SIZE
+#define MAX_SEGMENT_SIZE 128
+#endif
+
 static const unsigned long magic_seq = 0x123FFABC;
 static const char default_name[] = "bit_db";
 
@@ -85,6 +89,13 @@ bit_db_connect(bit_db_conn *conn, const char *pathname)
 	return (status == 0) ? 0 : hash_map_init(&conn->map);
 }
 
+int
+bit_db_connect_full(bit_db_conn *conn)
+{
+	off_t fsize = lseek(conn->fd, 0, SEEK_END);
+	return fsize > MAX_SEGMENT_SIZE;
+}
+
 /*
  * We write blocks of: key_size | key | data_size | data
  * and store the file offset for the data in memory.
@@ -111,7 +122,7 @@ bit_db_put(bit_db_conn *conn, char *key, void *value, size_t bytes)
 	return hash_map_put(&conn->map, key, &off); 		
 }
 
-int
+size_t
 bit_db_get(bit_db_conn *conn, char *key, void *value)
 {
 	off_t *base_off, data_off;
@@ -153,7 +164,7 @@ bit_db_get(bit_db_conn *conn, char *key, void *value)
 		return -1;
 	}
 
-	return 0;
+	return data_size;
 }
 
 int
