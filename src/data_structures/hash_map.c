@@ -224,7 +224,7 @@ hash_map_read(FILE *fp, hash_map *map)
 			prev_node = node;
 			node = NULL;
 		}
-		map->dimension = max(1, log2(map->num_elems));
+		map->dimension = (map->num_elems < 2) ? 1 : log2(map->num_elems);
 	}
 
 RETURN:
