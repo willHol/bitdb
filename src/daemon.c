@@ -7,7 +7,9 @@
 #include <dirent.h>
 #include <string.h>
 #include <regex.h>
+#include "error_functions.h"
 #include "sl_list.h"
+#include "dl_list.h"
 #include "bit_db.h"
 
 #define MAX_SEGMENT_SIZE 64
@@ -23,8 +25,7 @@
  */
 
 bool volatile run = true;
-static bit_db_conn connections[MAX_NUM_SEGMENTS];
-static size_t num_segments;
+static dl_list connections;
 
 static size_t
 count_num_segments()
@@ -44,11 +45,11 @@ count_num_segments()
 	
 	regfree(&regex);	
 	closedir(dirp);
-	return count;
+	return (count > 0) ? count : 1;
 }
 
-static int
-count_digits(int num)
+static size_t
+count_digits(size_t num)
 {
 	return snprintf(NULL, 0, "%d", num) - (num < 0);
 }
@@ -56,43 +57,81 @@ count_digits(int num)
 static void
 init_connections(void)
 {
-	num_segments = count_num_segments();
-	int result;
-	int conns_num_digits = count_digits(num_segments);
+	size_t segment_count = count_num_segments();
+	size_t conns_num_digits = count_digits(segment_count);
 	char pathname[strlen(NAME_PREFIX) + conns_num_digits];
 	char num_string[conns_num_digits];	
-	size_t segment_count;
+	bit_db_conn *connection;
 
-	segment_count = (num_segments > 0) ? num_segments : 1;
+	if (dl_list_init(&connections, sizeof(bit_db_conn *)) == -1)
+		exit(EXIT_FAILURE);
+
 	for (size_t i = 0; i < segment_count; i++) {
 		strcpy(pathname, NAME_PREFIX);
 		sprintf(num_string, "%d", i);
 		strcat(pathname, num_string);
 		
-		if (bit_db_connect(&connections[i], pathname) == -1) {
+		connection = calloc(1, sizeof(bit_db_conn));
+		if (connection == NULL)
+			errExit("calloc");
+
+		if (bit_db_connect(connection, pathname) == -1) {
 			if ((errno == EMAGICSEQ || errno == ENOENT) && bit_db_init(pathname) != 0) {
 				/*
 				 * Segment doesn't exist or has an invalid magic sequence.
 				 * Unable to create a working segment file.
 				 */
-				printf("[ERROR] Failed to create segment file\nERRNO: %ld\n", (long)errno);
+				printf("[ERROR] Failed to create segment file \"%s\"\n", pathname);
+				free(connection);
 				exit(EXIT_FAILURE);
 			}
-			if (bit_db_connect(&connections[i], pathname) == -1)
+			if (bit_db_connect(connection, pathname) == -1) {
+				printf("[ERROR] Failed to open connection to segment file \"%s\"", pathname);
+				free(connection);
 				exit(EXIT_FAILURE);
+			}
 			printf("[INFO] Created segment file \"%s\"\n", pathname);
 		}
+		if (dl_list_add(&connections, i, connection) == -1)
+			errExit("dl_list_set()");
+
 		printf("[INFO] Opened connection to segment file \"%s\"\n", pathname);
 	}
 }
 
+static bit_db_conn *
+get_conn(size_t i)
+{
+        bit_db_conn *out;
+        if (dl_list_get(&connections, i, (void **)&out) == -1)
+                return NULL;
+        return out;
+}
+
+
 static void
 cleanup(void)
 {
-	for (size_t i = 0; i < num_segments; i++) {
-		if (bit_db_destroy_conn(&connections[i]) == -1)
+	bit_db_conn *conn;
+	
+	printf("[DEBUG] Cleaning up\n");
+	for (size_t i = 0; i < connections.num_elems; i++) {
+		conn = get_conn(i);
+		if (conn != NULL && bit_db_destroy_conn(conn) == -1)
 			printf("[DEBUG] Unable to destroy connection #%ld", (long)i);
+		free(conn);
 	}
+}
+
+static void
+persist_tables(void)
+{
+	for (size_t i = 0; i < connections.num_elems; i++) {
+                if (bit_db_persist_table(get_conn(i)) == -1)
+                        printf("[INFO] Failed to persist connection\n");
+                else
+                        printf("[INFO] Successfully persisted connection\n");
+        }
 }
 
 static void
@@ -110,29 +149,12 @@ main(int argc, char *argv[])
 	// TODO: becomeDaemon
 	
 	printf("[INFO] Entering loop\n");
-	/* Receive queries and respond to them */
-	for (;run;) {
-	
+	while (run) {
+		/* Receive queries and respond to them */	
 	}
-	char value[5];	
-	int result;
-	if (bit_db_get(&connections[0], "key", value) == -1)
-		printf("file sucks sock!\n");
-	else
-		printf("GOT: %s\n", value);
-	
-	result = bit_db_put(&connections[0], "key", "value", 6);
-	result = bit_db_put(&connections[0], "key2", "value2", 7);
+	printf("\n");
 
-
-	for (size_t i = 0; i < num_segments; i++) {
-		if (bit_db_persist_table(&connections[i]) == -1)
-                	printf("[INFO] Failed to persist connection\n");
-        	else
-                	printf("[INFO] Successfully persisted connection\n");
-	}
-
-	printf("[DEBUG] Cleaning up\n");
+	persist_tables();
 	cleanup();
 	
 	printf("[INFO] Exiting daemon\n");
