@@ -119,15 +119,19 @@ cleanup(void)
 		conn = get_conn(i);
 		if (conn != NULL && bit_db_destroy_conn(conn) == -1)
 			printf("[DEBUG] Unable to destroy connection #%ld", (long)i);
-		free(conn);
+		if (conn != NULL)
+			free(conn);
 	}
 }
 
 static void
 persist_tables(void)
 {
+	bit_db_conn *conn;
+
 	for (size_t i = 0; i < connections.num_elems; i++) {
-                if (bit_db_persist_table(get_conn(i)) == -1)
+           	conn = get_conn(i);     
+		if (conn == NULL || bit_db_persist_table(conn) == -1)
                         printf("[INFO] Failed to persist connection\n");
                 else
                         printf("[INFO] Successfully persisted connection\n");
