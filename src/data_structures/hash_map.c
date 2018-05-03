@@ -6,6 +6,8 @@
 #include "error_functions.h"
 #include "hash_map.h"
 
+#define max(a,b) (a > b) ? a : b
+
 static size_t
 sdbm(char str[])
 {
@@ -160,7 +162,7 @@ hash_map_read(FILE *fp, hash_map *map)
 	}
 
 	map->values = calloc(pow(2,map->dimension), sizeof(sl_list));
-        if (map->values == NULL) {
+	if (map->values == NULL) {
 		errMsg("calloc()");
 		result = -1;
                 goto RETURN;
@@ -222,7 +224,7 @@ hash_map_read(FILE *fp, hash_map *map)
 			prev_node = node;
 			node = NULL;
 		}
-		map->dimension = log2(list->num_elems);
+		map->dimension = max(1, log2(map->num_elems));
 	}
 
 RETURN:
