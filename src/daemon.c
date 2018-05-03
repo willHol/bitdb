@@ -2,12 +2,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <unistd.h>
 #include <errno.h>
 #include <signal.h>
+#include <syslog.h>
 #include <dirent.h>
 #include <string.h>
 #include <regex.h>
 #include "error_functions.h"
+#include "inet_sockets.h"
 #include "sl_list.h"
 #include "dl_list.h"
 #include "bit_db.h"
@@ -15,6 +18,9 @@
 #define MAX_SEGMENT_SIZE 128 // Small for testing purposes
 #define DIRECTORY "db"
 #define NAME_PREFIX "db/bit_db"
+#define BUF_SIZE 4096
+#define SERVICE "65528" // Port
+#define BACKLOG 10 // Number of pending connections
 
 /* 
  * Each connection is associated with an open file and
@@ -147,22 +153,39 @@ sig_int_handler(int dummy)
 int
 main(int argc, char *argv[])
 {
-	size_t bytes;
+	int lfd, cfd;
+	size_t num_read;
+	char buf[BUF_SIZE];
 	char value[_POSIX_NAME_MAX];
 	char pathname[_POSIX_NAME_MAX];
 	char num[_POSIX_NAME_MAX];
 	bit_db_conn *connection;
-
 	
 	init_connections();	
-	signal(SIGINT, sig_int_handler);
+
+	if ((lfd = inetListen(SERVICE, BACKLOG, NULL)) == -1) {
+		syslog(LOG_ERR, "Could not create server socket (%s)", strerror(errno));
+		errExit("inetListen()");
+	}
+	printf("[INFO] Listening on socket: %s\n", SERVICE);
 
 	// TODO: becomeDaemon
-	
+
+	// Just wait for single connection for now
+	if ((lfd = accept(lfd, NULL, NULL)) == -1) {
+		syslog(LOG_ERR, "Failure in accept(): %s", strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+	printf("[INFO] Client connected\n");
+
+	//signal(SIGINT, sig_int_handler);
 	printf("[INFO] Entering loop\n");
 	while (run) {
-		/* Receive queries and respond to them */
-		
+		num_read = 0;
+		read_line(lfd, buf, BUF_SIZE);
+
+		printf("BYTES: %s\n", buf);
+
 		// The most recently opened connection
 		if (dl_list_peek(&connections, (void **)&connection) == -1)
 			break;
@@ -193,7 +216,7 @@ main(int argc, char *argv[])
 		}
 
 		// For testing
-		run = false;
+		// run = false;
 	}
 	printf("\n");
 

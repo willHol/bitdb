@@ -22,6 +22,9 @@ int inetBind(const char *service, int type, socklen_t *addrlen);
 char *inetAddressStr(const struct sockaddr *addr, socklen_t addrlen,
                 char *addrStr, int addrStrLen);
 
+ssize_t
+read_line(int sfd, void *buffer, size_t n);
+
 #define IS_ADDR_STR_LEN 4096
                         /* Suggested length for string buffer that caller
                            should pass to inetAddressStr(). Must be greater
