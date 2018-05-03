@@ -11,14 +11,19 @@
 /* inet_sockets.c
    A package of useful routines for Internet domain sockets.
 */
-#define _BSD_SOURCE             /* To get NI_MAXHOST and NI_MAXSERV
+#define _DEFAULT_SOURCE             /* To get NI_MAXHOST and NI_MAXSERV
                                    definitions from <netdb.h> */
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdbool.h>
+#include <errno.h>
+#include <unistd.h>
 #include "inet_sockets.h"       /* Declares functions defined here */
-#include "tlpi_hdr.h"
 
 /* The following arguments are common to several of the routines
    below:
@@ -31,6 +36,9 @@
 /* Create socket and connect it to the address specified by
   'host' + 'service'/'type'. Return socket descriptor on success,
   or -1 on error */
+
+static int
+inetPassiveSocket(const char *service, int type, socklen_t *addrlen, bool doListen, int backlog);
 
 int
 inetConnect(const char *host, const char *service, int type)
@@ -75,7 +83,7 @@ inetConnect(const char *host, const char *service, int type)
 
 /* Create an Internet domain socket and bind it to the address
    { wildcard-IP-address + 'service'/'type' }.
-   If 'doListen' is TRUE, then make this a listening socket (by
+   If 'doListen' is true, then make this a listening socket (by
    calling listen() with 'backlog'), with the SO_REUSEADDR option set.
    If 'addrLen' is not NULL, then use it to return the size of the
    address structure for the address family for this socket.
@@ -83,7 +91,7 @@ inetConnect(const char *host, const char *service, int type)
 
 static int              /* Public interfaces: inetBind() and inetListen() */
 inetPassiveSocket(const char *service, int type, socklen_t *addrlen,
-                  Boolean doListen, int backlog)
+                  bool doListen, int backlog)
 {
     struct addrinfo hints;
     struct addrinfo *result, *rp;
@@ -149,7 +157,7 @@ inetPassiveSocket(const char *service, int type, socklen_t *addrlen,
 int
 inetListen(const char *service, int backlog, socklen_t *addrlen)
 {
-    return inetPassiveSocket(service, SOCK_STREAM, addrlen, TRUE, backlog);
+    return inetPassiveSocket(service, SOCK_STREAM, addrlen, true, backlog);
 }
 
 /* Create socket bound to wildcard IP address + port given in
@@ -158,7 +166,7 @@ inetListen(const char *service, int backlog, socklen_t *addrlen)
 int
 inetBind(const char *service, int type, socklen_t *addrlen)
 {
-    return inetPassiveSocket(service, type, addrlen, FALSE, 0);
+    return inetPassiveSocket(service, type, addrlen, false, 0);
 }
 
 /* Given a socket address in 'addr', whose length is specified in
