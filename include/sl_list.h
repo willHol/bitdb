@@ -6,6 +6,7 @@
  */
 #pragma once
 #include <sys/types.h>
+#include "dl_list.h"
 
 typedef struct {
 	char *key;
@@ -37,6 +38,9 @@ sl_list_push(sl_list *list, key_value *kv);
 
 int
 sl_list_pop(sl_list *list, key_value **kv);
+
+int
+sl_list_keys(sl_list *slist, dl_list *dlist);
 
 int
 sl_list_find(sl_list *list, char *key, off_t **value);

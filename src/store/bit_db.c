@@ -9,6 +9,7 @@
 #include <string.h>
 #include "error_functions.h"
 #include "sha256.h"
+#include "dl_list.h"
 #include "hash_map.h"
 #include "bit_db.h"
 
@@ -149,6 +150,19 @@ bit_db_get(bit_db_conn *conn, char *key, void *value)
 	/* Read the data */
 	if(pread(conn->fd, value, data_size, data_off) == -1) {
 		errMsg("pread() %s", conn->pathname);
+		return -1;
+	}
+
+	return 0;
+}
+
+int
+bit_db_keys(bit_db_conn *conn, dl_list *list)
+{
+	if (dl_list_init(list, sizeof(char *)) == -1)
+		return -1;
+
+	if (hash_map_keys(&conn->map, list) == -1) {
 		return -1;
 	}
 

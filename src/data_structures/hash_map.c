@@ -269,3 +269,13 @@ hash_map_get(hash_map *map, char *key, off_t **value)
 	return sl_list_find(&(map->values[index]), key, value);
 }
 
+int
+hash_map_keys(hash_map *map, dl_list *list)
+{
+	for (size_t i = 0; i < pow(2,map->dimension); i++) {
+		if (sl_list_keys(&map->values[i], list) == -1)
+			return -1;	
+	}
+	return 0;
+}
+

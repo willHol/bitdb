@@ -13,6 +13,7 @@
 #pragma once
 #include <stdio.h>
 #include <sys/types.h>
+#include "dl_list.h"
 #include "sl_list.h"
 
 typedef struct {
@@ -49,3 +50,6 @@ hash_map_put(hash_map *map, char *key, off_t *value);
 
 int
 hash_map_get(hash_map *map, char *key, off_t **value);
+
+int
+hash_map_keys(hash_map *map, dl_list *list);

@@ -118,6 +118,22 @@ sl_list_pop(sl_list *list, key_value **kv)
 }
 
 int
+sl_list_keys(sl_list *slist, dl_list *dlist)
+{
+	sl_node *node;
+	char *key;
+
+	node = slist->head;
+	while (node != NULL) {
+		key = node->kv->key;
+		if (dl_list_push(dlist, key) == -1)
+		       return -1;
+		node = node->next;	
+	}
+	return 0;	
+}
+
+int
 sl_list_find(sl_list *list, char *key, off_t **value)
 {
 	sl_node *u;
