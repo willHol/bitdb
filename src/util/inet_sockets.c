@@ -49,42 +49,42 @@ inetPassiveSocket(const char* service,
 int
 inetConnect(const char* host, const char* service, int type)
 {
-  struct addrinfo hints;
-  struct addrinfo *result, *rp;
-  int sfd, s;
+    struct addrinfo hints;
+    struct addrinfo *result, *rp;
+    int sfd, s;
 
-  memset(&hints, 0, sizeof(struct addrinfo));
-  hints.ai_canonname = NULL;
-  hints.ai_addr = NULL;
-  hints.ai_next = NULL;
-  hints.ai_family = AF_UNSPEC; /* Allows IPv4 or IPv6 */
-  hints.ai_socktype = type;
+    memset(&hints, 0, sizeof(struct addrinfo));
+    hints.ai_canonname = NULL;
+    hints.ai_addr = NULL;
+    hints.ai_next = NULL;
+    hints.ai_family = AF_UNSPEC; /* Allows IPv4 or IPv6 */
+    hints.ai_socktype = type;
 
-  s = getaddrinfo(host, service, &hints, &result);
-  if (s != 0) {
-    errno = ENOSYS;
-    return -1;
-  }
+    s = getaddrinfo(host, service, &hints, &result);
+    if (s != 0) {
+        errno = ENOSYS;
+        return -1;
+    }
 
-  /* Walk through returned list until we find an address structure
-     that can be used to successfully connect a socket */
+    /* Walk through returned list until we find an address structure
+       that can be used to successfully connect a socket */
 
-  for (rp = result; rp != NULL; rp = rp->ai_next) {
-    sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-    if (sfd == -1)
-      continue; /* On error, try next address */
+    for (rp = result; rp != NULL; rp = rp->ai_next) {
+        sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+        if (sfd == -1)
+            continue; /* On error, try next address */
 
-    if (connect(sfd, rp->ai_addr, rp->ai_addrlen) != -1)
-      break; /* Success */
+        if (connect(sfd, rp->ai_addr, rp->ai_addrlen) != -1)
+            break; /* Success */
 
-    /* Connect failed: close this socket and try next address */
+        /* Connect failed: close this socket and try next address */
 
-    close(sfd);
-  }
+        close(sfd);
+    }
 
-  freeaddrinfo(result);
+    freeaddrinfo(result);
 
-  return (rp == NULL) ? -1 : sfd;
+    return (rp == NULL) ? -1 : sfd;
 }
 
 /* Create an Internet domain socket and bind it to the address
@@ -102,61 +102,62 @@ inetPassiveSocket(const char* service,
                   bool doListen,
                   int backlog)
 {
-  struct addrinfo hints;
-  struct addrinfo *result, *rp;
-  int sfd, optval, s;
+    struct addrinfo hints;
+    struct addrinfo *result, *rp;
+    int sfd, optval, s;
 
-  memset(&hints, 0, sizeof(struct addrinfo));
-  hints.ai_canonname = NULL;
-  hints.ai_addr = NULL;
-  hints.ai_next = NULL;
-  hints.ai_socktype = type;
-  hints.ai_family = AF_UNSPEC; /* Allows IPv4 or IPv6 */
-  hints.ai_flags = AI_PASSIVE; /* Use wildcard IP address */
+    memset(&hints, 0, sizeof(struct addrinfo));
+    hints.ai_canonname = NULL;
+    hints.ai_addr = NULL;
+    hints.ai_next = NULL;
+    hints.ai_socktype = type;
+    hints.ai_family = AF_UNSPEC; /* Allows IPv4 or IPv6 */
+    hints.ai_flags = AI_PASSIVE; /* Use wildcard IP address */
 
-  s = getaddrinfo(NULL, service, &hints, &result);
-  if (s != 0)
-    return -1;
-
-  /* Walk through returned list until we find an address structure
-     that can be used to successfully create and bind a socket */
-
-  optval = 1;
-  for (rp = result; rp != NULL; rp = rp->ai_next) {
-    sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-    if (sfd == -1)
-      continue; /* On error, try next address */
-
-    if (doListen) {
-      if (setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) ==
-          -1) {
-        close(sfd);
-        freeaddrinfo(result);
+    s = getaddrinfo(NULL, service, &hints, &result);
+    if (s != 0)
         return -1;
-      }
+
+    /* Walk through returned list until we find an address structure
+       that can be used to successfully create and bind a socket */
+
+    optval = 1;
+    for (rp = result; rp != NULL; rp = rp->ai_next) {
+        sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+        if (sfd == -1)
+            continue; /* On error, try next address */
+
+        if (doListen) {
+            if (setsockopt(
+                  sfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) ==
+                -1) {
+                close(sfd);
+                freeaddrinfo(result);
+                return -1;
+            }
+        }
+
+        if (bind(sfd, rp->ai_addr, rp->ai_addrlen) == 0)
+            break; /* Success */
+
+        /* bind() failed: close this socket and try next address */
+
+        close(sfd);
     }
 
-    if (bind(sfd, rp->ai_addr, rp->ai_addrlen) == 0)
-      break; /* Success */
-
-    /* bind() failed: close this socket and try next address */
-
-    close(sfd);
-  }
-
-  if (rp != NULL && doListen) {
-    if (listen(sfd, backlog) == -1) {
-      freeaddrinfo(result);
-      return -1;
+    if (rp != NULL && doListen) {
+        if (listen(sfd, backlog) == -1) {
+            freeaddrinfo(result);
+            return -1;
+        }
     }
-  }
 
-  if (rp != NULL && addrlen != NULL)
-    *addrlen = rp->ai_addrlen; /* Return address structure size */
+    if (rp != NULL && addrlen != NULL)
+        *addrlen = rp->ai_addrlen; /* Return address structure size */
 
-  freeaddrinfo(result);
+    freeaddrinfo(result);
 
-  return (rp == NULL) ? -1 : sfd;
+    return (rp == NULL) ? -1 : sfd;
 }
 
 /* Create stream socket, bound to wildcard IP address + port given in
@@ -166,7 +167,7 @@ inetPassiveSocket(const char* service,
 int
 inetListen(const char* service, int backlog, socklen_t* addrlen)
 {
-  return inetPassiveSocket(service, SOCK_STREAM, addrlen, true, backlog);
+    return inetPassiveSocket(service, SOCK_STREAM, addrlen, true, backlog);
 }
 
 /* Create socket bound to wildcard IP address + port given in
@@ -175,7 +176,7 @@ inetListen(const char* service, int backlog, socklen_t* addrlen)
 int
 inetBind(const char* service, int type, socklen_t* addrlen)
 {
-  return inetPassiveSocket(service, type, addrlen, false, 0);
+    return inetPassiveSocket(service, type, addrlen, false, 0);
 }
 
 /* Given a socket address in 'addr', whose length is specified in
@@ -191,60 +192,66 @@ inetAddressStr(const struct sockaddr* addr,
                char* addrStr,
                int addrStrLen)
 {
-  char host[NI_MAXHOST], service[NI_MAXSERV];
+    char host[NI_MAXHOST], service[NI_MAXSERV];
 
-  if (getnameinfo(
-        addr, addrlen, host, NI_MAXHOST, service, NI_MAXSERV, NI_NUMERICSERV) ==
-      0)
-    snprintf(addrStr, addrStrLen, "(%s, %s)", host, service);
-  else
-    snprintf(addrStr, addrStrLen, "(?UNKNOWN?)");
+    if (getnameinfo(addr,
+                    addrlen,
+                    host,
+                    NI_MAXHOST,
+                    service,
+                    NI_MAXSERV,
+                    NI_NUMERICSERV) == 0)
+        snprintf(addrStr, addrStrLen, "(%s, %s)", host, service);
+    else
+        snprintf(addrStr, addrStrLen, "(?UNKNOWN?)");
 
-  return addrStr;
+    return addrStr;
 }
 
 ssize_t
 read_line(int sfd, void* buffer, size_t n)
 {
-  ssize_t num_read;
-  size_t tot_read;
-  char* buf;
-  char ch;
+    ssize_t num_read;
+    size_t tot_read;
+    char* buf;
+    char ch;
 
-  if (n <= 0 || buffer == NULL) {
-    errno = EINVAL;
-    return -1;
-  }
-
-  buf = buffer;
-
-  tot_read = 0;
-  while (run) {
-    num_read = read(sfd, &ch, 1);
-
-    if (num_read == -1) {
-      if (errno == EINTR)
-        if (run)
-          continue;
-        else
-          return -1;
-      else
+    if (n <= 0 || buffer == NULL) {
+        errno = EINVAL;
         return -1;
-    } else if (num_read == 0) {
-      if (tot_read == 0)
-        return 0;
-      else
-        break;
-    } else {
-      if (tot_read < n - 1) {
-        tot_read++;
-        *buf++ = ch;
-      }
     }
 
-    if (ch == '\n')
-      break;
-  }
-  *buf = '\0';
-  return tot_read;
+    buf = buffer;
+
+    tot_read = 0;
+    while (run) {
+        num_read = read(sfd, &ch, 1);
+
+        if (num_read == -1) {
+            if (errno == EINTR)
+                if (run)
+                    continue;
+                else
+                    return -1;
+            else
+                return -1;
+        }
+        else if (num_read == 0) {
+            if (tot_read == 0)
+                return 0;
+            else
+                break;
+        }
+        else {
+            if (tot_read < n - 1) {
+                tot_read++;
+                *buf++ = ch;
+            }
+        }
+
+        if (ch == '\n')
+            break;
+    }
+    *buf = '\0';
+    return tot_read;
 }

@@ -8,23 +8,20 @@
 #include "dl_list.h"
 #include <sys/types.h>
 
-typedef struct
-{
-  char* key;
-  off_t* value;
+typedef struct {
+    char* key;
+    off_t* value;
 } key_value;
 
-typedef struct sl_node
-{
-  struct sl_node* next;
-  key_value* kv;
+typedef struct sl_node {
+    struct sl_node* next;
+    key_value* kv;
 } sl_node;
 
-typedef struct
-{
-  sl_node* head;
-  sl_node* tail;
-  size_t num_elems;
+typedef struct {
+    sl_node* head;
+    sl_node* tail;
+    size_t num_elems;
 } sl_list;
 
 int

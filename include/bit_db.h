@@ -8,11 +8,10 @@
 #define EMAGICSEQ -3
 #define ECHECKSUM -4
 
-typedef struct
-{
-  int fd;
-  char pathname[_POSIX_PATH_MAX];
-  hash_map map;
+typedef struct {
+    int fd;
+    char pathname[_POSIX_PATH_MAX];
+    hash_map map;
 } bit_db_conn;
 
 int

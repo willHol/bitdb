@@ -16,12 +16,11 @@
 #include <stdio.h>
 #include <sys/types.h>
 
-typedef struct
-{
-  size_t dimension; /* The backing array is of size 2^dimension */
-  int random_int;
-  int num_elems;
-  sl_list* values; /* An array of pointers to lists of key-value duples */
+typedef struct {
+    size_t dimension; /* The backing array is of size 2^dimension */
+    int random_int;
+    int num_elems;
+    sl_list* values; /* An array of pointers to lists of key-value duples */
 } hash_map;
 
 /*

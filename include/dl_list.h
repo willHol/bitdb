@@ -2,21 +2,19 @@
 #include <stdbool.h>
 #include <sys/types.h>
 
-typedef struct dl_node
-{
-  void* elem;
-  struct dl_node* prev;
-  struct dl_node* next;
+typedef struct dl_node {
+    void* elem;
+    struct dl_node* prev;
+    struct dl_node* next;
 } dl_node;
 
-typedef struct dl_list
-{
-  bool do_alloc;
-  size_t num_elems;
-  size_t elem_size;
-  struct dl_node* dummy;
-  struct dl_node* head;
-  struct dl_node* tail;
+typedef struct dl_list {
+    bool do_alloc;
+    size_t num_elems;
+    size_t elem_size;
+    struct dl_node* dummy;
+    struct dl_node* head;
+    struct dl_node* tail;
 } dl_list;
 
 int
