@@ -77,7 +77,6 @@ bit_db_connect(bit_db_conn *conn, const char *pathname)
         errExit("read() %s", pathname);
     }
     if (read_magic_seq != magic_seq) {
-        errMsg("%s", pathname);
         errno = EMAGICSEQ;
         return -1;
     }
