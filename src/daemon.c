@@ -44,6 +44,8 @@ static dl_list workers;
 
 static void*
 handle_request(void* cfd);
+static int
+get_client(int *cfd);
 
 static void
 init_data(void);
@@ -176,8 +178,8 @@ main(void)
 static void*
 handle_request(__attribute__((unused)) void* fd)
 {
-    int s, t;
-    int* cfd = NULL;
+    int s;
+    int *cfd = NULL;
     ssize_t num_read = 0;
     char line[BUF_SIZE];
     char* token;
@@ -191,21 +193,18 @@ WAIT:
     if (s != 0)
         errExitEN(s, "pthread_cond_wait()");
 
+    /* clients_mtx is locked when pthread_cond_wait returns */
     if (!run) {
         pthread_mutex_unlock(&clients_mtx);
         return NULL;
     }
 
-    if (dl_list_dequeue(&clients, (void**)&cfd) ==
-        -1) /* cfd will point to an int sfd */
-        errExitEN(s, "dl_list_dequeue()");
-
-    s = pthread_mutex_unlock(&clients_mtx);
-    if (s != 0)
-        errExitEN(s, "pthread_mutex_unlock()");
-
+    /* Should always be at least 1 client because clients_new was triggered */
+    if (get_client(cfd) == -1)
+            errExitEN(s, "get_client()");
+        
     while (true) {
-        /* Now we can serve the client */
+        /* Serve the client */
         while (run && ((num_read = read_line(*cfd, line, BUF_SIZE)) > 0)) {
             token = strtok(line, " ");
             if (token == NULL)
@@ -216,31 +215,46 @@ WAIT:
         close(*cfd);
         free(cfd);
 
+        /* If read failed due to interrupt check for exit condition */
         if (num_read == -1 && errno == EINTR)
-            break;
+                if (!run)
+                        break;
 
-        s = pthread_mutex_lock(&clients_mtx);
-        if (s != 0)
-            errExitEN(s, "pthread_mutex_lock()");
-
-        t = dl_list_dequeue(&clients, (void**)&cfd);
-
-        s = pthread_mutex_unlock(&clients_mtx);
-        if (s != 0)
-            errExitEN(s, "pthread_mutex_unlock()");
-
-        if (t == 0) {
-            /* Got another client to serve */
+        if (get_client(cfd) == 0) {
+            /* Another client to serve */
             continue;
         }
-        else if (errno != EINTR) {
-            /* No clients left to serve */
+        else if (run) {
+            /* No clients left to serve and exit condition false */
             goto WAIT;
         }
-        /* Must have been an interrupt */
+
+        /* exit condition */
         break;
     }
     return NULL;
+}
+
+/*
+ * Dequeues a client and points cfd to the descriptor
+ *
+ * Post-condition: clients_mtx will be unlocked
+ */ 
+static int
+get_client(int *cfd)
+{
+    int s, status;
+
+    /* Returns immediately if thread already holds the lock */
+    if ((s = pthread_mutex_trylock(&clients_mtx)) != 0)
+           errExitEN(s, "pthread_mutex_trylock()"); 
+
+    status = dl_list_dequeue(&clients, (void **)&cfd);
+    
+    if ((s = pthread_mutex_unlock(&clients_mtx)) != 0)
+            errExitEN(s, "pthread_mutex_unlock()");
+
+    return status;
 }
 
 /*
