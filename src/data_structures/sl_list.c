@@ -19,11 +19,11 @@ new_node(key_value *kv)
 	 */
 	key_value *kv_cpy = malloc(sizeof(key_value));
 	char *key_cpy = malloc(strlen(kv->key) + 1);
-	off_t *value_cpy = malloc(sizeof(kv->value));
+	off_t *value_cpy = malloc(sizeof(off_t));
 	
-	memcpy(kv_cpy, kv, sizeof(kv));
+	memcpy(kv_cpy, kv, sizeof(key_value));
 	strcpy(key_cpy, kv->key);
-	memcpy(value_cpy, kv->value, sizeof(kv->value));
+	memcpy(value_cpy, kv->value, sizeof(off_t));
 	
 	node->kv = kv_cpy;
 	node->kv->key = key_cpy;

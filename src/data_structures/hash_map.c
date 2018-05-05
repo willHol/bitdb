@@ -14,7 +14,7 @@ sdbm(char str[])
 	size_t hash = 0;
 	int c;
 
-	while (c = *str++)
+	while ((c = *str++))
 		hash = c + (hash << 6) + (hash << 16) - hash;
 	
 	return hash;
@@ -33,7 +33,7 @@ resize(hash_map *map, size_t dim_change)
 	sl_list *old_values = map->values;
 	sl_list *new_values = calloc(pow(2,dim_new), sizeof(sl_list));
 	sl_list list;
-	sl_node *prev_node, *node;
+	sl_node *node;
 	
 	map->values = new_values;
 	map->dimension = dim_new;
@@ -74,15 +74,20 @@ hash_map_init(hash_map *map)
 int
 hash_map_destroy(hash_map *map)
 {
+	int status = 0;
+	int s;
+
 	if (map == NULL)
 		return 0;
 	if (map->values == NULL)
 		return 0;
 
 	for (size_t i = 0; i < pow(2,map->dimension); i++) {
-		sl_list_destroy(&(map->values[i]));
+		s = sl_list_destroy(&(map->values[i]));
+		status = (status != 0) ? status : s;
 	}
 	free(map->values);
+	return status;
 }
 
 // TODO: Optimise this, alignment and not persisting unecessary fields
@@ -149,7 +154,8 @@ hash_map_read(FILE *fp, hash_map *map)
 				   initialised */
 
 	if (fread(map, sizeof(hash_map), 1, fp) == 0) {
-		errMsg("fread() map");
+		if (ferror(fp) != 0)
+			errMsg("fread() map");
 		result = -1;
 		goto RETURN;
 	}
@@ -174,7 +180,8 @@ hash_map_read(FILE *fp, hash_map *map)
 		list = &map->values[i];
 		
 		if (fread(list, sizeof(sl_list), 1, fp) == 0) {
-			errMsg("fread() list");
+			if (ferror(fp) != 0)
+				errMsg("fread() list");
 			result = -1;
                 	goto RETURN;
 		}
@@ -184,18 +191,17 @@ hash_map_read(FILE *fp, hash_map *map)
 
 		final_length = list->num_elems;
 		list->num_elems = 0;
-		for (size_t i = 0; i < final_length; i++) {
-			list->num_elems++;
-
+		for (size_t j = 0; j < final_length; i++) {
 			if (fread(&key_length, sizeof(size_t), 1, fp) == 0) {
-				errMsg("fread() key_length");
+				if (ferror(fp) != 0)
+					errMsg("fread() key_length");
 				result = -1;
                 		goto RETURN;
 			}
 
 			node = (node != NULL) ? node : malloc(sizeof(sl_node));
 			kv = malloc(sizeof(key_value));
-			key = malloc(sizeof(key_length));
+			key = malloc(key_length);
 			value = malloc(sizeof(off_t));
 			
 			node->next = NULL;
@@ -204,13 +210,29 @@ hash_map_read(FILE *fp, hash_map *map)
                         node->kv = kv;
 
 			if (fread(key, key_length, 1, fp) == 0) {
-				errMsg("fread() key");
+				/* Local cleanup */
+				if (node != NULL)
+					free(node);
+				free(kv);
+				free(key);
+				free(value);
+
+				if (ferror(fp) != 0)
+					errMsg("fread() key");
 				result = -1;
                 		goto RETURN;
 			}
 			
 			if (fread(value, sizeof(off_t), 1, fp) == 0) {
-				errMsg("fread() value");
+				/* Local cleanup */
+				if (node != NULL)
+					free(node);
+				free(kv);
+				free(key);
+				free(value);
+
+				if (ferror(fp) != 0)
+					errMsg("fread() value");
 				result = -1;
                 		goto RETURN;
 			}
@@ -218,11 +240,12 @@ hash_map_read(FILE *fp, hash_map *map)
 			if (prev_node != NULL)
 				prev_node->next = node;
 	
-			if (i == final_length - 1)
+			if (j == final_length - 1)
 				list->tail = node;
 			
 			prev_node = node;
 			node = NULL;
+			list->num_elems++;
 		}
 		map->dimension = (map->num_elems < 2) ? 1 : log2(map->num_elems);
 	}

@@ -37,6 +37,8 @@
   'host' + 'service'/'type'. Return socket descriptor on success,
   or -1 on error */
 
+extern bool volatile run;
+
 static int
 inetPassiveSocket(const char *service, int type, socklen_t *addrlen, bool doListen, int backlog);
 
@@ -207,12 +209,15 @@ read_line(int sfd, void *buffer, size_t n)
 	buf = buffer;
 	
 	tot_read = 0;
-	for(;;) {
+	while(run) {
 		num_read = read(sfd, &ch, 1);
 
 		if (num_read == -1) {
-			if (errno = EINTR)
-				continue;
+			if (errno == EINTR)
+				if (run)
+					continue;
+				else
+					return -1;
 			else
 				return -1;
 		}

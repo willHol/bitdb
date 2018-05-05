@@ -1,6 +1,10 @@
 CC=gcc
-CFLAGS=-Iinclude -Ideps/Unity/src -Ideps/crypto-algorithms -g
-LIBS = -lm
+CFLAGS =  -Iinclude -Ideps/Unity/src -Ideps/crypto-algorithms -g
+CFLAGS += -Wall -Wextra -Wformat=2 -Wno-format-nonliteral -Wshadow
+CFLAGS += -Wpointer-arith -Wcast-qual -Wmissing-prototypes -Wno-missing-braces
+CFLAGS += -Wstrict-aliasing=1 -pedantic-errors
+CFLAGS += -std=c99 -D_GNU_SOURCE -O2
+LIBS = -lm -pthread
 DEPS = bit_bd.h hash_map.h sl_list.h dl_list.h error_functions.h
 OBJ = src/data_structures/hash_map.o src/data_structures/sl_list.o
 OBJ += src/data_structures/dl_list.o
@@ -13,10 +17,10 @@ TEST_CFLAGS = -Wl,-wrap,malloc -Wl,-wrap,calloc
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 main: $(OBJ) $(PROG)
-	gcc -o $@ $^ $(CFLAGS) $(LIBS)
+	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
 
 test: $(OBJ) $(TEST_OBJ) $(PROG)
-	gcc -o $@ $^ $(CFLAGS) $(TEST_CFLAGS) $(LIBS)
+	$(CC) -o $@ $^ $(CFLAGS) $(TEST_CFLAGS) $(LIBS)
 
 .PHONY: clean
 
