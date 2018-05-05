@@ -55,6 +55,8 @@ static void
 open_connections(void);
 static void
 start_workers(void);
+static void
+handle_signals(void);
 
 static void
 destroy_data(void);
@@ -81,26 +83,11 @@ int
 main(void)
 {
     int lfd, cfd;
-    struct sigaction sa;
-
-    // TODO: becomeDaemon
 
     init_data();
     open_connections();
     start_workers();
-
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    sa.sa_handler = sig_int_handler;
-    if (sigaction(SIGINT, &sa, NULL) == -1) {
-        printf("[ERROR] Failed to register SIGINT handler\n");
-        exit(EXIT_FAILURE);
-    }
-    sa.sa_handler = sig_usr_handler;
-    if (sigaction(SIGUSR1, &sa, NULL) == -1) {
-        printf("[ERROR] Failed to register SIGUSR1 handler\n");
-        exit(EXIT_FAILURE);
-    }
+    handle_signals();
 
     if ((lfd = inetListen(SERVICE, BACKLOG, NULL)) == -1) {
         syslog(LOG_ERR, "Could not create server socket (%s)", strerror(errno));
@@ -352,6 +339,29 @@ start_workers(void)
         s = pthread_create(stored_thread, NULL, handle_request, NULL);
         if (s != 0)
             errExitEN(s, "pthread_create");
+    }
+}
+
+/*
+ * Register signal handlers
+ */
+static void
+handle_signals(void)
+{
+    struct sigaction sa;
+
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sa.sa_handler = sig_int_handler;
+    if (sigaction(SIGINT, &sa, NULL) == -1) {
+        printf("[ERROR] Failed to register SIGINT handler\n");
+        exit(EXIT_FAILURE);
+    }
+
+    sa.sa_handler = sig_usr_handler;
+    if (sigaction(SIGUSR1, &sa, NULL) == -1) {
+        printf("[ERROR] Failed to register SIGUSR1 handler\n");
+        exit(EXIT_FAILURE);
     }
 }
 
