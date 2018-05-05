@@ -24,23 +24,16 @@ typedef struct {
     size_t num_elems;
 } sl_list;
 
-int
-sl_list_init(sl_list* list);
+int sl_list_init(sl_list* list);
 
-int
-sl_list_destroy(sl_list* list);
+int sl_list_destroy(sl_list* list);
 
-int
-sl_list_destroy_kv(key_value* kv);
+int sl_list_destroy_kv(key_value* kv);
 
-int
-sl_list_push(sl_list* list, key_value* kv);
+int sl_list_push(sl_list* list, key_value* kv);
 
-int
-sl_list_pop(sl_list* list, key_value** kv);
+int sl_list_pop(sl_list* list, key_value** kv);
 
-int
-sl_list_keys(sl_list* slist, dl_list* dlist);
+int sl_list_keys(sl_list* slist, dl_list* dlist);
 
-int
-sl_list_find(sl_list* list, char* key, off_t** value);
+int sl_list_find(sl_list* list, char* key, off_t** value);

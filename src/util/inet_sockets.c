@@ -39,12 +39,8 @@
 
 extern bool volatile run;
 
-static int
-inetPassiveSocket(const char* service,
-                  int type,
-                  socklen_t* addrlen,
-                  bool doListen,
-                  int backlog);
+static int inetPassiveSocket(const char* service, int type, socklen_t* addrlen,
+                             bool doListen, int backlog);
 
 int
 inetConnect(const char* host, const char* service, int type)
@@ -96,11 +92,8 @@ inetConnect(const char* host, const char* service, int type)
    Return the socket descriptor on success, or -1 on error. */
 
 static int /* Public interfaces: inetBind() and inetListen() */
-inetPassiveSocket(const char* service,
-                  int type,
-                  socklen_t* addrlen,
-                  bool doListen,
-                  int backlog)
+  inetPassiveSocket(const char* service, int type, socklen_t* addrlen,
+                    bool doListen, int backlog)
 {
     struct addrinfo hints;
     struct addrinfo *result, *rp;
@@ -128,9 +121,8 @@ inetPassiveSocket(const char* service,
             continue; /* On error, try next address */
 
         if (doListen) {
-            if (setsockopt(
-                  sfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) ==
-                -1) {
+            if (setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &optval,
+                           sizeof(optval)) == -1) {
                 close(sfd);
                 freeaddrinfo(result);
                 return -1;
@@ -187,19 +179,12 @@ inetBind(const char* service, int type, socklen_t* addrlen)
    size of the 'addrStr' buffer in 'addrStrLen'. */
 
 char*
-inetAddressStr(const struct sockaddr* addr,
-               socklen_t addrlen,
-               char* addrStr,
+inetAddressStr(const struct sockaddr* addr, socklen_t addrlen, char* addrStr,
                int addrStrLen)
 {
     char host[NI_MAXHOST], service[NI_MAXSERV];
 
-    if (getnameinfo(addr,
-                    addrlen,
-                    host,
-                    NI_MAXHOST,
-                    service,
-                    NI_MAXSERV,
+    if (getnameinfo(addr, addrlen, host, NI_MAXHOST, service, NI_MAXSERV,
                     NI_NUMERICSERV) == 0)
         snprintf(addrStr, addrStrLen, "(%s, %s)", host, service);
     else

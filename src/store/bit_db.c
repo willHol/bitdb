@@ -107,10 +107,10 @@ bit_db_put(bit_db_conn* conn, char* key, void* value, size_t bytes)
     size_t key_len = strlen(key) + 1;
 
     struct iovec iov[] = {
-        { .iov_base = (void*)&key_len, .iov_len = sizeof(size_t) },
-        { .iov_base = (void*)key, .iov_len = key_len },
-        { .iov_base = (void*)&bytes, .iov_len = sizeof(size_t) },
-        { .iov_base = value, .iov_len = bytes }
+        {.iov_base = (void*)&key_len, .iov_len = sizeof(size_t) },
+        {.iov_base = (void*)key, .iov_len = key_len },
+        {.iov_base = (void*)&bytes, .iov_len = sizeof(size_t) },
+        {.iov_base = value, .iov_len = bytes }
     };
 
     if (writev(conn->fd, iov, 4) < 0) {
@@ -141,9 +141,9 @@ bit_db_get(bit_db_conn* conn, char* key, void* value)
      * we can return an error if the key is not does not
      * actually exist at the specified offset
      */
-    struct iovec iov[] = { { .iov_base = read_key, .iov_len = key_size },
-                           { .iov_base = &data_size,
-                             .iov_len = sizeof(size_t) } };
+    struct iovec iov[] = { {.iov_base = read_key, .iov_len = key_size },
+                           {.iov_base = &data_size,
+                            .iov_len = sizeof(size_t) } };
 
     /* Read the key and data size */
     if (preadv(conn->fd, iov, 2, *base_off + sizeof(size_t)) == -1) {

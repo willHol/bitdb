@@ -51,10 +51,7 @@ terminate(bool useExit3)
         'format' and 'ap'. */
 
 static void
-outputError(bool useErr,
-            int err,
-            bool flushStdout,
-            const char* format,
+outputError(bool useErr, int err, bool flushStdout, const char* format,
             va_list ap)
 {
 #define BUF_SIZE 500
@@ -63,9 +60,7 @@ outputError(bool useErr,
     vsnprintf(userMsg, BUF_SIZE, format, ap);
 
     if (useErr)
-        snprintf(errText,
-                 BUF_SIZE,
-                 " (%s %s)",
+        snprintf(errText, BUF_SIZE, " (%s %s)",
                  (err > 0 && err <= MAX_ENAME) ? ename[err] : "?UNKNOWN?",
                  strerror(err));
     else

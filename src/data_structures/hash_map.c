@@ -269,7 +269,7 @@ hash_map_put(hash_map* map, char* key, off_t* value)
 {
     int status;
     off_t* f_value;
-    key_value kv = { .key = key, .value = value };
+    key_value kv = {.key = key, .value = value };
 
     if (find(map, key, &f_value) == 0) {
         *f_value = *value;

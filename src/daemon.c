@@ -1,9 +1,9 @@
 #include "bit_db.h"
 #include "dl_list.h"
 #include "error_functions.h"
+#include "helper_functions.h"
 #include "inet_sockets.h"
 #include "sl_list.h"
-#include "helper_functions.h"
 #include <errno.h>
 #include <pthread.h>
 #include <signal.h>
@@ -46,45 +46,29 @@ static dl_list workers;
 
 /******************************************************/
 
-static void*
-handle_request(void* cfd);
-static ssize_t
-send_response(int cfd, char *msg, size_t bytes);
-static int
-dequeue_client(int **cfd);
-static int
-enqueue_client(int cfd);
+static void* handle_request(void* cfd);
+static ssize_t send_response(int cfd, char* msg, size_t bytes);
+static int dequeue_client(int** cfd);
+static int enqueue_client(int cfd);
 
 /*
  * Protocol functions
  */
-static ssize_t
-handle_get(int cfd, char *line);
+static ssize_t handle_get(int cfd, char* line);
 
-static void
-init_data(void);
-static void
-init_mutex(void);
-static void
-open_connections(void);
-static void
-start_workers(void);
-static void
-handle_signals(void);
+static void init_data(void);
+static void init_mutex(void);
+static void open_connections(void);
+static void start_workers(void);
+static void handle_signals(void);
 
-static void
-destroy_data(void);
-static void
-close_connections(void);
-static void
-stop_workers(void);
-static void
-persist_tables(void);
+static void destroy_data(void);
+static void close_connections(void);
+static void stop_workers(void);
+static void persist_tables(void);
 
-static void
-sig_int_handler(int signum);
-static void
-sig_usr_handler(int signum);
+static void sig_int_handler(int signum);
+static void sig_usr_handler(int signum);
 
 /******************************************************/
 
@@ -110,12 +94,12 @@ main(void)
             syslog(LOG_ERR, "Failure in accept(): %s", strerror(errno));
             break;
         }
-       
+
         if (enqueue_client(cfd) == -1) {
-                errMsg("enqueue_client() %d", cfd);
-                break;
+            errMsg("enqueue_client() %d", cfd);
+            break;
         }
-        
+
         /*
         // The most recently opened connection
         if (dl_list_peek(&connections, (void **)&connection) == -1)
@@ -136,7 +120,8 @@ main(void)
                         printf("[ERROR] Failed to create segment file \"%s\"\n",
         pathname); break;
                 }
-pthread_mutex_init(&clients_mtx, &attr)) != 0)                if (bit_db_connect(connection, pathname) == -1) {
+pthread_mutex_init(&clients_mtx, &attr)) != 0)                if
+(bit_db_connect(connection, pathname) == -1) {
                         printf("[ERROR] Failed to open connection to segment
         file
         \"%s\"", pathname); break;
@@ -170,10 +155,10 @@ handle_request(__attribute__((unused)) void* fd)
 {
     int s;
     ssize_t written;
-    int *cfd = NULL;
+    int* cfd = NULL;
     ssize_t num_read = 0;
     char line[BUF_SIZE];
-    char *line_dup;
+    char* line_dup;
     char* token;
 
 WAIT:
@@ -193,23 +178,23 @@ WAIT:
 
     /* Should always be at least 1 client because clients_new was triggered */
     if (dequeue_client(&cfd) == -1)
-            errExit("dequeue_client()");
-        
+        errExit("dequeue_client()");
+
     while (true) {
         /* Serve the client */
         while (run && ((num_read = read_line(*cfd, line, BUF_SIZE)) > 0)) {
-            line_dup = line; 
+            line_dup = line;
             token = strsep(&line_dup, " ");
             if (token == NULL)
-                    continue;
-            
+                continue;
+
             written = 0;
             strlwr(token);
             if (strncmp("get", token, 3) == 0) {
-                    written = handle_get(*cfd, line_dup);
+                written = handle_get(*cfd, line_dup);
             }
             else
-                    printf("Unrecognised token!\n");
+                printf("Unrecognised token!\n");
 
             /* An error occured in handling request, could be a program
              * ending interrupt or some other error
@@ -218,15 +203,15 @@ WAIT:
                 close(*cfd);
                 free(cfd);
                 return NULL;
-            } 
+            }
         }
         close(*cfd);
         free(cfd);
 
         /* If read failed due to interrupt check for exit condition */
         if (num_read == -1 && errno == EINTR)
-                if (!run)
-                        break;
+            if (!run)
+                break;
 
         if (dequeue_client(&cfd) == 0) {
             /* Another client to serve */
@@ -251,24 +236,24 @@ WAIT:
  * Returns -1 on program exiting interrupt or other error.
  */
 static ssize_t
-send_response(int cfd, char *msg, size_t bytes)
+send_response(int cfd, char* msg, size_t bytes)
 {
     ssize_t num_written;
     size_t tot_written = 0;
-    
+
 RETRY:
     if ((num_written = write(cfd, msg, bytes - tot_written)) != -1) {
-           /* zero or more bytes written */
-           tot_written += num_written;
-           if (tot_written < bytes)
-                   goto RETRY;
+        /* zero or more bytes written */
+        tot_written += num_written;
+        if (tot_written < bytes)
+            goto RETRY;
     }
     else {
         /* An error occurred */
         if (errno == EINTR && run)
-                goto RETRY;
+            goto RETRY;
         else
-                return -1;
+            return -1;
     }
     return tot_written;
 }
@@ -277,20 +262,20 @@ RETRY:
  * Dequeues a client and points cfd to the descriptor
  *
  * Post-condition: clients_mtx will be unlocked
- */ 
+ */
 static int
-dequeue_client(int **cfd)
+dequeue_client(int** cfd)
 {
     int s, status;
-    
+
     /* errno will be EDEADLK if the mutex is already owned */
     if ((s = pthread_mutex_lock(&clients_mtx)) != 0 && s != EDEADLK)
-            errExitEN(s, "pthread_mutex_lock()");
+        errExitEN(s, "pthread_mutex_lock()");
 
-    status = dl_list_dequeue(&clients, (void **)cfd);
-    
+    status = dl_list_dequeue(&clients, (void**)cfd);
+
     if ((s = pthread_mutex_unlock(&clients_mtx)) != 0)
-            errExitEN(s, "pthread_mutex_unlock()");
+        errExitEN(s, "pthread_mutex_unlock()");
 
     return status;
 }
@@ -313,11 +298,11 @@ enqueue_client(int cfd)
     status = dl_list_enqueue(&clients, &cfd);
 
     if ((s = pthread_mutex_unlock(&clients_mtx)) != 0)
-            errExitEN(s, "pthread_mutex_unlock()");
+        errExitEN(s, "pthread_mutex_unlock()");
 
     /* Wakes a single pending worker if exists */
     if ((s = pthread_cond_signal(&clients_new)) != 0)
-            errExitEN(s, "pthread_cond_signal()");
+        errExitEN(s, "pthread_cond_signal()");
 
     return status;
 }
@@ -326,13 +311,13 @@ enqueue_client(int cfd)
  * Handles a get request, e.g. "GET key CRLF"
  */
 static ssize_t
-handle_get(int cfd, char *line)
+handle_get(int cfd, char* line)
 {
     if (line == NULL || *line == ' ')
-            return send_response(cfd, BENOKEY, sizeof(BENOKEY)); 
+        return send_response(cfd, BENOKEY, sizeof(BENOKEY));
 
     if (send_response(cfd, OK, sizeof(OK)) == -1)
-            return -1;
+        return -1;
 
     printf("%d\n", (int)line);
     /* The number of bytes in the value */
@@ -363,17 +348,17 @@ init_mutex(void)
     pthread_mutexattr_t attr;
 
     if ((s = pthread_mutexattr_init(&attr)) != 0)
-            errExitEN(s, "pthread_mutexattr_init()");
-    
+        errExitEN(s, "pthread_mutexattr_init()");
+
     /* Defaults are fine for conns_mtx */
     if ((s = pthread_mutex_init(&conns_mtx, &attr)) != 0)
-            errExitEN(s, "pthread_mutex_init() conns_mtx");
+        errExitEN(s, "pthread_mutex_init() conns_mtx");
 
     /* clients_mtx should be error checking */
     if ((s = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK)) != 0)
-            errExitEN(s, "pthread_mutexattr_settype()");
+        errExitEN(s, "pthread_mutexattr_settype()");
     if ((s = pthread_mutex_init(&clients_mtx, &attr)) != 0)
-            errExitEN(s, "pthread_mutex_init() clients_mtx");
+        errExitEN(s, "pthread_mutex_init() clients_mtx");
 }
 
 /*
@@ -554,4 +539,3 @@ static void
 sig_usr_handler(__attribute__((unused)) int signum)
 {
 }
-

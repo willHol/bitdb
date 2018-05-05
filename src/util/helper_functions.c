@@ -1,16 +1,16 @@
 #include "helper_functions.h"
-#include <sys/types.h>
-#include <string.h>
 #include <ctype.h>
+#include <dirent.h>
 #include <regex.h>
 #include <stdio.h>
-#include <dirent.h>
+#include <string.h>
+#include <sys/types.h>
 
 /*
  * Lowercases a string
  */
-char *
-strlwr(char *string)
+char*
+strlwr(char* string)
 {
     for (size_t i = 0; string[i] != '\0'; i++) {
         string[i] = tolower(string[i]);
@@ -23,10 +23,10 @@ strlwr(char *string)
  * char is \n
  */
 void
-trim_eol(char *string)
+trim_eol(char* string)
 {
     size_t len;
-    
+
     len = strlen(string);
     while (len > 0 && string[len - 1] == '\n') {
         string[len - 1] = '\0';
@@ -66,4 +66,3 @@ count_digits(size_t num)
 {
     return snprintf(NULL, 0, "%lu", (unsigned long)num) - (num < 0);
 }
-
