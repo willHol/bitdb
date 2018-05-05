@@ -58,6 +58,7 @@ bit_db_destroy(const char* pathname)
 int
 bit_db_destroy_conn(bit_db_conn* conn)
 {
+  close(conn->fd);
   return hash_map_destroy(&conn->map);
 }
 
