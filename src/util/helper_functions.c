@@ -9,11 +9,28 @@
 /*
  * Lowercases a string
  */
-void
+char *
 strlwr(char *string)
 {
     for (size_t i = 0; string[i] != '\0'; i++) {
         string[i] = tolower(string[i]);
+    }
+    return string;
+}
+
+/*
+ * Replaces the last character of a string with \0 if the last
+ * char is \n
+ */
+void
+trim_eol(char *string)
+{
+    size_t len;
+    
+    len = strlen(string);
+    while (len > 0 && string[len - 1] == '\n') {
+        string[len - 1] = '\0';
+        len--;
     }
 }
 

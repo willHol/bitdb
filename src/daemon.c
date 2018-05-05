@@ -4,7 +4,6 @@
 #include "inet_sockets.h"
 #include "sl_list.h"
 #include "helper_functions.h"
-#include <dirent.h>
 #include <errno.h>
 #include <pthread.h>
 #include <signal.h>
@@ -25,16 +24,21 @@
 #define BACKLOG 10
 #define NTHREADS 2
 
+/******************** RESPONSES ************************/
+
+#define OK "+OK"
+#define BENOKEY "-NOKEY Get request doesn't include a key\r\n"
+
 /******************************************************/
 
 bool volatile run = true;
 
 static dl_list connections;
-static pthread_mutex_t conns_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t conns_mtx;
 
 static dl_list clients;
 static pthread_cond_t clients_new = PTHREAD_COND_INITIALIZER;
-static pthread_mutex_t clients_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t clients_mtx;
 
 static dl_list workers;
 
@@ -44,13 +48,23 @@ static dl_list workers;
 
 static void*
 handle_request(void* cfd);
+static ssize_t
+send_response(int cfd, char *msg, size_t bytes);
 static int
-dequeue_client(int *cfd);
+dequeue_client(int **cfd);
 static int
 enqueue_client(int cfd);
 
+/*
+ * Protocol functions
+ */
+static ssize_t
+handle_get(int cfd, char *line);
+
 static void
 init_data(void);
+static void
+init_mutex(void);
 static void
 open_connections(void);
 static void
@@ -80,6 +94,7 @@ main(void)
     int lfd, cfd;
 
     init_data();
+    init_mutex();
     open_connections();
     start_workers();
     handle_signals();
@@ -95,12 +110,12 @@ main(void)
             syslog(LOG_ERR, "Failure in accept(): %s", strerror(errno));
             break;
         }
-        
+       
         if (enqueue_client(cfd) == -1) {
                 errMsg("enqueue_client() %d", cfd);
                 break;
         }
-
+        
         /*
         // The most recently opened connection
         if (dl_list_peek(&connections, (void **)&connection) == -1)
@@ -121,7 +136,7 @@ main(void)
                         printf("[ERROR] Failed to create segment file \"%s\"\n",
         pathname); break;
                 }
-                if (bit_db_connect(connection, pathname) == -1) {
+pthread_mutex_init(&clients_mtx, &attr)) != 0)                if (bit_db_connect(connection, pathname) == -1) {
                         printf("[ERROR] Failed to open connection to segment
         file
         \"%s\"", pathname); break;
@@ -154,9 +169,11 @@ static void*
 handle_request(__attribute__((unused)) void* fd)
 {
     int s;
+    ssize_t written;
     int *cfd = NULL;
     ssize_t num_read = 0;
     char line[BUF_SIZE];
+    char *line_dup;
     char* token;
 
 WAIT:
@@ -175,17 +192,33 @@ WAIT:
     }
 
     /* Should always be at least 1 client because clients_new was triggered */
-    if (dequeue_client(cfd) == -1)
+    if (dequeue_client(&cfd) == -1)
             errExit("dequeue_client()");
         
     while (true) {
         /* Serve the client */
         while (run && ((num_read = read_line(*cfd, line, BUF_SIZE)) > 0)) {
-            token = strtok(line, " ");
+            line_dup = line; 
+            token = strsep(&line_dup, " ");
             if (token == NULL)
-                continue;
+                    continue;
             
-            printf("TOKEN: %s", token);
+            written = 0;
+            strlwr(token);
+            if (strncmp("get", token, 3) == 0) {
+                    written = handle_get(*cfd, line_dup);
+            }
+            else
+                    printf("Unrecognised token!\n");
+
+            /* An error occured in handling request, could be a program
+             * ending interrupt or some other error
+             */
+            if (written < 0) {
+                close(*cfd);
+                free(cfd);
+                return NULL;
+            } 
         }
         close(*cfd);
         free(cfd);
@@ -195,7 +228,7 @@ WAIT:
                 if (!run)
                         break;
 
-        if (dequeue_client(cfd) == 0) {
+        if (dequeue_client(&cfd) == 0) {
             /* Another client to serve */
             continue;
         }
@@ -211,20 +244,50 @@ WAIT:
 }
 
 /*
+ * Writes `msg` to the client socket. `bytes` must be
+ * strlen(msg) + 1 or sizeof(const msg). Retries if
+ * an interrupt occurs that is unrelated to program exit.
+ *
+ * Returns -1 on program exiting interrupt or other error.
+ */
+static ssize_t
+send_response(int cfd, char *msg, size_t bytes)
+{
+    ssize_t num_written;
+    size_t tot_written = 0;
+    
+RETRY:
+    if ((num_written = write(cfd, msg, bytes - tot_written)) != -1) {
+           /* zero or more bytes written */
+           tot_written += num_written;
+           if (tot_written < bytes)
+                   goto RETRY;
+    }
+    else {
+        /* An error occurred */
+        if (errno == EINTR && run)
+                goto RETRY;
+        else
+                return -1;
+    }
+    return tot_written;
+}
+
+/*
  * Dequeues a client and points cfd to the descriptor
  *
  * Post-condition: clients_mtx will be unlocked
  */ 
 static int
-dequeue_client(int *cfd)
+dequeue_client(int **cfd)
 {
     int s, status;
+    
+    /* errno will be EDEADLK if the mutex is already owned */
+    if ((s = pthread_mutex_lock(&clients_mtx)) != 0 && s != EDEADLK)
+            errExitEN(s, "pthread_mutex_lock()");
 
-    /* Returns immediately if thread already holds the lock */
-    if ((s = pthread_mutex_trylock(&clients_mtx)) != 0)
-           errExitEN(s, "pthread_mutex_trylock()"); 
-
-    status = dl_list_dequeue(&clients, (void **)&cfd);
+    status = dl_list_dequeue(&clients, (void **)cfd);
     
     if ((s = pthread_mutex_unlock(&clients_mtx)) != 0)
             errExitEN(s, "pthread_mutex_unlock()");
@@ -243,9 +306,9 @@ enqueue_client(int cfd)
 {
     int s, status;
 
-    /* Returns immediately if thread already holds the lock */
-    if ((s = pthread_mutex_trylock(&clients_mtx)) != 0)
-           errExitEN(s, "pthread_mutex_trylock()");
+    /* errno will be EDEADLK if the mutex is already owned */
+    if ((s = pthread_mutex_lock(&clients_mtx)) != 0 && s != EDEADLK)
+        errExitEN(s, "pthread_mutex_lock()");
 
     status = dl_list_enqueue(&clients, &cfd);
 
@@ -260,6 +323,23 @@ enqueue_client(int cfd)
 }
 
 /*
+ * Handles a get request, e.g. "GET key CRLF"
+ */
+static ssize_t
+handle_get(int cfd, char *line)
+{
+    if (line == NULL || *line == ' ')
+            return send_response(cfd, BENOKEY, sizeof(BENOKEY)); 
+
+    if (send_response(cfd, OK, sizeof(OK)) == -1)
+            return -1;
+
+    printf("%d\n", (int)line);
+    /* The number of bytes in the value */
+    return send_response(cfd, " 32\r\n", 6);
+}
+
+/*
  * Initialises global data structures
  */
 static void
@@ -271,6 +351,29 @@ init_data(void)
         exit(EXIT_FAILURE);
     if (dl_list_init(&workers, sizeof(pthread_t), true) == -1)
         exit(EXIT_FAILURE);
+}
+
+/*
+ * Initialises the mutexes
+ */
+static void
+init_mutex(void)
+{
+    int s;
+    pthread_mutexattr_t attr;
+
+    if ((s = pthread_mutexattr_init(&attr)) != 0)
+            errExitEN(s, "pthread_mutexattr_init()");
+    
+    /* Defaults are fine for conns_mtx */
+    if ((s = pthread_mutex_init(&conns_mtx, &attr)) != 0)
+            errExitEN(s, "pthread_mutex_init() conns_mtx");
+
+    /* clients_mtx should be error checking */
+    if ((s = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK)) != 0)
+            errExitEN(s, "pthread_mutexattr_settype()");
+    if ((s = pthread_mutex_init(&clients_mtx, &attr)) != 0)
+            errExitEN(s, "pthread_mutex_init() clients_mtx");
 }
 
 /*

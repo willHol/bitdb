@@ -249,9 +249,10 @@ read_line(int sfd, void* buffer, size_t n)
             }
         }
 
-        if (ch == '\n')
+        if (ch == '\n') {
+            *(buf - 1) = '\0';
             break;
+        }
     }
-    *buf = '\0';
     return tot_read;
 }
