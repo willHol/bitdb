@@ -64,5 +64,5 @@ count_num_segments(void)
 size_t
 count_digits(size_t num)
 {
-    return snprintf(NULL, 0, "%lu", (unsigned long)num) - (num < 0);
+    return snprintf(NULL, 0, "%lu", (unsigned long)num);
 }
