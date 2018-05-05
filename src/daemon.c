@@ -3,10 +3,10 @@
 #include "error_functions.h"
 #include "inet_sockets.h"
 #include "sl_list.h"
+#include "helper_functions.h"
 #include <dirent.h>
 #include <errno.h>
 #include <pthread.h>
-#include <regex.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -71,11 +71,6 @@ static void
 sig_int_handler(int signum);
 static void
 sig_usr_handler(int signum);
-
-static size_t
-count_num_segments(void);
-static size_t
-count_digits(size_t num);
 
 /******************************************************/
 
@@ -189,7 +184,7 @@ WAIT:
             token = strtok(line, " ");
             if (token == NULL)
                 continue;
-
+            
             printf("TOKEN: %s", token);
         }
         close(*cfd);
@@ -457,35 +452,3 @@ sig_usr_handler(__attribute__((unused)) int signum)
 {
 }
 
-/*
- * Counts the number of log file segments in the database folder
- */
-static size_t
-count_num_segments(void)
-{
-    size_t count = 0;
-    struct dirent* dir;
-    DIR* dirp = opendir(DIRECTORY);
-    regex_t regex;
-
-    /* bit_db001 but not bit_db001.tb */
-    if (regcomp(&regex, "^bit_db[0-9]+$", REG_EXTENDED) != 0)
-        return 0;
-
-    while ((dir = readdir(dirp)) != NULL)
-        if (regexec(&regex, dir->d_name, 0, NULL, 0) == 0)
-            count++;
-
-    regfree(&regex);
-    closedir(dirp);
-    return (count > 0) ? count : 1;
-}
-
-/*
- * Counts the number of digits in a number
- */
-static size_t
-count_digits(size_t num)
-{
-    return snprintf(NULL, 0, "%lu", (unsigned long)num) - (num < 0);
-}
