@@ -45,7 +45,9 @@ static dl_list workers;
 static void*
 handle_request(void* cfd);
 static int
-get_client(int *cfd);
+dequeue_client(int *cfd);
+static int
+enqueue_client(int cfd);
 
 static void
 init_data(void);
@@ -78,7 +80,7 @@ count_digits(size_t num);
 int
 main(void)
 {
-    int lfd, cfd, s;
+    int lfd, cfd;
     struct sigaction sa;
 
     // TODO: becomeDaemon
@@ -111,20 +113,11 @@ main(void)
             syslog(LOG_ERR, "Failure in accept(): %s", strerror(errno));
             break;
         }
-
-        s = pthread_mutex_lock(&clients_mtx);
-        if (s != 0)
-            break;
-
-        dl_list_enqueue(&clients, &cfd);
-
-        s = pthread_mutex_unlock(&clients_mtx);
-        if (s != 0)
-            break;
-
-        s = pthread_cond_signal(&clients_new); /* Wakes a single worker */
-        if (s != 0)
-            break;
+        
+        if (enqueue_client(cfd) == -1) {
+                errMsg("enqueue_client() %d", cfd);
+                break;
+        }
 
         /*
         // The most recently opened connection
@@ -200,8 +193,8 @@ WAIT:
     }
 
     /* Should always be at least 1 client because clients_new was triggered */
-    if (get_client(cfd) == -1)
-            errExitEN(s, "get_client()");
+    if (dequeue_client(cfd) == -1)
+            errExit("dequeue_client()");
         
     while (true) {
         /* Serve the client */
@@ -220,7 +213,7 @@ WAIT:
                 if (!run)
                         break;
 
-        if (get_client(cfd) == 0) {
+        if (dequeue_client(cfd) == 0) {
             /* Another client to serve */
             continue;
         }
@@ -241,7 +234,7 @@ WAIT:
  * Post-condition: clients_mtx will be unlocked
  */ 
 static int
-get_client(int *cfd)
+dequeue_client(int *cfd)
 {
     int s, status;
 
@@ -253,6 +246,33 @@ get_client(int *cfd)
     
     if ((s = pthread_mutex_unlock(&clients_mtx)) != 0)
             errExitEN(s, "pthread_mutex_unlock()");
+
+    return status;
+}
+
+/*
+ * Queues a client
+ *
+ * Post-conditions: clients_mtx will be unlocked,
+ *                  if a worker is pending it will be woken
+ */
+static int
+enqueue_client(int cfd)
+{
+    int s, status;
+
+    /* Returns immediately if thread already holds the lock */
+    if ((s = pthread_mutex_trylock(&clients_mtx)) != 0)
+           errExitEN(s, "pthread_mutex_trylock()");
+
+    status = dl_list_enqueue(&clients, &cfd);
+
+    if ((s = pthread_mutex_unlock(&clients_mtx)) != 0)
+            errExitEN(s, "pthread_mutex_unlock()");
+
+    /* Wakes a single pending worker if exists */
+    if ((s = pthread_cond_signal(&clients_new)) != 0)
+            errExitEN(s, "pthread_cond_signal()");
 
     return status;
 }
