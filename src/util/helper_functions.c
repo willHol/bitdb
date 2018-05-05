@@ -9,8 +9,8 @@
 /*
  * Lowercases a string
  */
-char*
-strlwr(char* string)
+char *
+strlwr(char *string)
 {
     for (size_t i = 0; string[i] != '\0'; i++) {
         string[i] = tolower(string[i]);
@@ -23,7 +23,7 @@ strlwr(char* string)
  * char is \n
  */
 void
-trim_eol(char* string)
+trim_eol(char *string)
 {
     size_t len;
 
@@ -41,8 +41,8 @@ size_t
 count_num_segments(void)
 {
     size_t count = 0;
-    struct dirent* dir;
-    DIR* dirp = opendir(DIRECTORY);
+    struct dirent *dir;
+    DIR *dirp = opendir(DIRECTORY);
     regex_t regex;
 
     /* bit_db001 but not bit_db001.tb */

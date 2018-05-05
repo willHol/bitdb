@@ -5,10 +5,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-static dl_node*
-new_node(void* x)
+static dl_node *
+new_node(void *x)
 {
-    dl_node* node = malloc(sizeof(dl_node));
+    dl_node *node = malloc(sizeof(dl_node));
     if (node == NULL) {
         errMsg("malloc() dl_node");
         return NULL;
@@ -21,10 +21,10 @@ new_node(void* x)
     return node;
 }
 
-static dl_node*
-get_node(dl_list* list, size_t i)
+static dl_node *
+get_node(dl_list *list, size_t i)
 {
-    dl_node* p;
+    dl_node *p;
 
     if (list->num_elems < i)
         return NULL;
@@ -45,9 +45,9 @@ get_node(dl_list* list, size_t i)
 }
 
 static int
-cpy_if_needed(dl_list* list, void** x)
+cpy_if_needed(dl_list *list, void **x)
 {
-    void* cpy;
+    void *cpy;
 
     if (list->do_alloc) {
         if ((cpy = malloc(list->elem_size)) == NULL)
@@ -59,12 +59,12 @@ cpy_if_needed(dl_list* list, void** x)
 }
 
 static int
-add_before(dl_list* list, dl_node* w, void* x)
+add_before(dl_list *list, dl_node *w, void *x)
 {
     if (cpy_if_needed(list, &x) == -1)
         return -1;
 
-    dl_node* u = new_node(x);
+    dl_node *u = new_node(x);
     if (u == NULL)
         return -1;
 
@@ -76,10 +76,10 @@ add_before(dl_list* list, dl_node* w, void* x)
     return 0;
 }
 
-static void*
-remove_node(dl_list* list, dl_node* w)
+static void *
+remove_node(dl_list *list, dl_node *w)
 {
-    void* x;
+    void *x;
 
     x = w->elem;
     w->prev->next = w->next;
@@ -91,9 +91,9 @@ remove_node(dl_list* list, dl_node* w)
 }
 
 int
-dl_list_init(dl_list* list, size_t elem_size, bool do_alloc)
+dl_list_init(dl_list *list, size_t elem_size, bool do_alloc)
 {
-    dl_node* dummy = new_node(NULL);
+    dl_node *dummy = new_node(NULL);
     if (dummy == NULL)
         return -1;
 
@@ -110,9 +110,9 @@ dl_list_init(dl_list* list, size_t elem_size, bool do_alloc)
 }
 
 int
-dl_list_get(dl_list* list, size_t i, void** out)
+dl_list_get(dl_list *list, size_t i, void **out)
 {
-    dl_node* u = get_node(list, i);
+    dl_node *u = get_node(list, i);
     if (u == NULL)
         return -1;
 
@@ -121,10 +121,10 @@ dl_list_get(dl_list* list, size_t i, void** out)
 }
 
 int
-dl_list_set(dl_list* list, size_t i, void* x)
+dl_list_set(dl_list *list, size_t i, void *x)
 {
-    void* old_elem;
-    dl_node* u = get_node(list, i);
+    void *old_elem;
+    dl_node *u = get_node(list, i);
 
     if (u == NULL)
         return -1;
@@ -141,9 +141,9 @@ dl_list_set(dl_list* list, size_t i, void* x)
 }
 
 int
-dl_list_add(dl_list* list, size_t i, void* x)
+dl_list_add(dl_list *list, size_t i, void *x)
 {
-    dl_node* u = get_node(list, i);
+    dl_node *u = get_node(list, i);
     if (u == NULL)
         return -1;
 
@@ -151,9 +151,9 @@ dl_list_add(dl_list* list, size_t i, void* x)
 }
 
 int
-dl_list_remove(dl_list* list, size_t i, void** x)
+dl_list_remove(dl_list *list, size_t i, void **x)
 {
-    dl_node* u = get_node(list, i);
+    dl_node *u = get_node(list, i);
     if (u == NULL)
         return -1;
 
@@ -163,43 +163,43 @@ dl_list_remove(dl_list* list, size_t i, void** x)
 }
 
 int
-dl_list_push(dl_list* list, void* x)
+dl_list_push(dl_list *list, void *x)
 {
     return dl_list_add(list, 0, x);
 }
 
 int
-dl_list_pop(dl_list* list, void** x)
+dl_list_pop(dl_list *list, void **x)
 {
     return dl_list_remove(list, 0, x);
 }
 
 int
-dl_list_stack_peek(dl_list* list, void** x)
+dl_list_stack_peek(dl_list *list, void **x)
 {
     return dl_list_get(list, 0, x);
 }
 
 int
-dl_list_enqueue(dl_list* list, void* x)
+dl_list_enqueue(dl_list *list, void *x)
 {
     return dl_list_add(list, 0, x);
 }
 
 int
-dl_list_dequeue(dl_list* list, void** x)
+dl_list_dequeue(dl_list *list, void **x)
 {
     return dl_list_remove(list, list->num_elems - 1, x);
 }
 
 int
-dl_list_queue_peek(dl_list* list, void** x)
+dl_list_queue_peek(dl_list *list, void **x)
 {
     return dl_list_get(list, list->num_elems - 1, x);
 }
 
 int
-dl_list_destroy(dl_list* list)
+dl_list_destroy(dl_list *list)
 {
     dl_node *u, *next;
 

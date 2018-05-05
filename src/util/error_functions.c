@@ -27,7 +27,7 @@ __attribute__((__noreturn__)) /* if we call this function as last */
 static void
 terminate(bool useExit3)
 {
-    char* s;
+    char *s;
 
     /* Dump core if EF_DUMPCORE environment variable is defined and
        is a nonempty string; otherwise call exit(3) or _exit(2),
@@ -51,7 +51,7 @@ terminate(bool useExit3)
         'format' and 'ap'. */
 
 static void
-outputError(bool useErr, int err, bool flushStdout, const char* format,
+outputError(bool useErr, int err, bool flushStdout, const char *format,
             va_list ap)
 {
 #define BUF_SIZE 500
@@ -78,7 +78,7 @@ outputError(bool useErr, int err, bool flushStdout, const char* format,
    return to caller */
 
 void
-errMsg(const char* format, ...)
+errMsg(const char *format, ...)
 {
     va_list argList;
     int savedErrno;
@@ -96,7 +96,7 @@ errMsg(const char* format, ...)
    terminate the process */
 
 void
-errExit(const char* format, ...)
+errExit(const char *format, ...)
 {
     va_list argList;
 
@@ -121,7 +121,7 @@ errExit(const char* format, ...)
    invoking exit handlers that were established by the caller. */
 
 void
-err_exit(const char* format, ...)
+err_exit(const char *format, ...)
 {
     va_list argList;
 
@@ -136,7 +136,7 @@ err_exit(const char* format, ...)
    the error number in 'errnum' */
 
 void
-errExitEN(int errnum, const char* format, ...)
+errExitEN(int errnum, const char *format, ...)
 {
     va_list argList;
 
@@ -150,7 +150,7 @@ errExitEN(int errnum, const char* format, ...)
 /* Print an error message (without an 'errno' diagnostic) */
 
 void
-fatal(const char* format, ...)
+fatal(const char *format, ...)
 {
     va_list argList;
 
@@ -164,7 +164,7 @@ fatal(const char* format, ...)
 /* Print a command usage error message and terminate the process */
 
 void
-usageErr(const char* format, ...)
+usageErr(const char *format, ...)
 {
     va_list argList;
 
@@ -183,7 +183,7 @@ usageErr(const char* format, ...)
    terminate the process */
 
 void
-cmdLineErr(const char* format, ...)
+cmdLineErr(const char *format, ...)
 {
     va_list argList;
 

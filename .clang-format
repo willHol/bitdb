@@ -1,6 +1,5 @@
 BasedOnStyle: Mozilla
 
 IndentWidth: 4
-
 BreakBeforeBraces: Stroustrup
-
+PointerAlignment: Right

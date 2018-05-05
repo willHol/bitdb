@@ -46,15 +46,15 @@ static dl_list workers;
 
 /******************************************************/
 
-static void* handle_request(void* cfd);
-static ssize_t send_response(int cfd, char* msg, size_t bytes);
-static int dequeue_client(int** cfd);
+static void *handle_request(void *cfd);
+static ssize_t send_response(int cfd, char *msg, size_t bytes);
+static int dequeue_client(int **cfd);
 static int enqueue_client(int cfd);
 
 /*
  * Protocol functions
  */
-static ssize_t handle_get(int cfd, char* line);
+static ssize_t handle_get(int cfd, char *line);
 
 static void init_data(void);
 static void init_mutex(void);
@@ -120,8 +120,8 @@ main(void)
                         printf("[ERROR] Failed to create segment file \"%s\"\n",
         pathname); break;
                 }
-pthread_mutex_init(&clients_mtx, &attr)) != 0)                if
-(bit_db_connect(connection, pathname) == -1) {
+    pthread_mutex_init(&clients_mtx, &attr)) != 0)                if
+    (bit_db_connect(connection, pathname) == -1) {
                         printf("[ERROR] Failed to open connection to segment
         file
         \"%s\"", pathname); break;
@@ -150,16 +150,16 @@ pthread_mutex_init(&clients_mtx, &attr)) != 0)                if
 /*
  * Called on thread initialisation
  */
-static void*
-handle_request(__attribute__((unused)) void* fd)
+static void *
+handle_request(__attribute__((unused)) void *fd)
 {
     int s;
     ssize_t written;
-    int* cfd = NULL;
+    int *cfd = NULL;
     ssize_t num_read = 0;
     char line[BUF_SIZE];
-    char* line_dup;
-    char* token;
+    char *line_dup;
+    char *token;
 
 WAIT:
     s = pthread_mutex_lock(&clients_mtx);
@@ -236,7 +236,7 @@ WAIT:
  * Returns -1 on program exiting interrupt or other error.
  */
 static ssize_t
-send_response(int cfd, char* msg, size_t bytes)
+send_response(int cfd, char *msg, size_t bytes)
 {
     ssize_t num_written;
     size_t tot_written = 0;
@@ -264,7 +264,7 @@ RETRY:
  * Post-condition: clients_mtx will be unlocked
  */
 static int
-dequeue_client(int** cfd)
+dequeue_client(int **cfd)
 {
     int s, status;
 
@@ -272,7 +272,7 @@ dequeue_client(int** cfd)
     if ((s = pthread_mutex_lock(&clients_mtx)) != 0 && s != EDEADLK)
         errExitEN(s, "pthread_mutex_lock()");
 
-    status = dl_list_dequeue(&clients, (void**)cfd);
+    status = dl_list_dequeue(&clients, (void **)cfd);
 
     if ((s = pthread_mutex_unlock(&clients_mtx)) != 0)
         errExitEN(s, "pthread_mutex_unlock()");
@@ -311,7 +311,7 @@ enqueue_client(int cfd)
  * Handles a get request, e.g. "GET key CRLF"
  */
 static ssize_t
-handle_get(int cfd, char* line)
+handle_get(int cfd, char *line)
 {
     if (line == NULL || *line == ' ')
         return send_response(cfd, BENOKEY, sizeof(BENOKEY));
@@ -416,7 +416,7 @@ start_workers(void)
     for (size_t i = 0; i < NTHREADS; i++) {
         if (dl_list_push(&workers, &thread) == -1)
             errExit("dl_list_push()");
-        if (dl_list_stack_peek(&workers, (void**)&stored_thread) == -1)
+        if (dl_list_stack_peek(&workers, (void **)&stored_thread) == -1)
             errExit("dl_list_stack_peek()");
 
         s = pthread_create(stored_thread, NULL, handle_request, NULL);
@@ -454,11 +454,11 @@ handle_signals(void)
 static void
 destroy_data(void)
 {
-    int* cfd;
+    int *cfd;
 
     /* Close connection to any remaining clients */
     for (size_t i = 0; i < clients.num_elems; i++) {
-        if (dl_list_get(&clients, i, (void**)&cfd) == -1)
+        if (dl_list_get(&clients, i, (void **)&cfd) == -1)
             continue;
         close(*cfd);
     }
@@ -477,10 +477,10 @@ destroy_data(void)
 static void
 close_connections(void)
 {
-    bit_db_conn* conn;
+    bit_db_conn *conn;
 
     for (size_t i = 0; i < connections.num_elems; i++) {
-        if (dl_list_get(&connections, i, (void**)&conn) == -1)
+        if (dl_list_get(&connections, i, (void **)&conn) == -1)
             continue;
         bit_db_destroy_conn(conn);
     }
@@ -493,13 +493,13 @@ static void
 stop_workers(void)
 {
     int s;
-    pthread_t* thread;
+    pthread_t *thread;
 
     /* Wake up all workers so they can check run variable */
     pthread_cond_broadcast(&clients_new);
 
     for (size_t i = 0; i < workers.num_elems; i++) {
-        if (dl_list_get(&workers, i, (void**)&thread) == -1)
+        if (dl_list_get(&workers, i, (void **)&thread) == -1)
             continue;
 
         /* Causes any pending system calls to return EINTR */
@@ -516,10 +516,10 @@ stop_workers(void)
 static void
 persist_tables(void)
 {
-    bit_db_conn* conn;
+    bit_db_conn *conn;
 
     for (size_t i = 0; i < connections.num_elems; i++) {
-        if (dl_list_get(&connections, i, (void**)&conn) == -1)
+        if (dl_list_get(&connections, i, (void **)&conn) == -1)
             continue;
 
         if (bit_db_persist_table(conn) == -1)

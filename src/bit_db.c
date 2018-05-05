@@ -21,7 +21,7 @@ static const unsigned long magic_seq = 0x123FFABC;
 static const char default_name[] = "bit_db";
 
 int
-bit_db_init(const char* pathname)
+bit_db_init(const char *pathname)
 {
     int fd;
     int flags = O_WRONLY | O_CREAT | O_TRUNC;
@@ -39,7 +39,7 @@ bit_db_init(const char* pathname)
 }
 
 int
-bit_db_destroy(const char* pathname)
+bit_db_destroy(const char *pathname)
 {
     int fd;
     int flags = O_WRONLY | O_CREAT | O_TRUNC;
@@ -56,14 +56,14 @@ bit_db_destroy(const char* pathname)
 }
 
 int
-bit_db_destroy_conn(bit_db_conn* conn)
+bit_db_destroy_conn(bit_db_conn *conn)
 {
     close(conn->fd);
     return hash_map_destroy(&conn->map);
 }
 
 int
-bit_db_connect(bit_db_conn* conn, const char* pathname)
+bit_db_connect(bit_db_conn *conn, const char *pathname)
 {
     int status = 0;
     int flags = O_RDWR | O_APPEND;
@@ -89,7 +89,7 @@ bit_db_connect(bit_db_conn* conn, const char* pathname)
 }
 
 int
-bit_db_connect_full(bit_db_conn* conn)
+bit_db_connect_full(bit_db_conn *conn)
 {
     off_t fsize = lseek(conn->fd, 0, SEEK_END);
     return fsize > MAX_SEGMENT_SIZE;
@@ -101,15 +101,15 @@ bit_db_connect_full(bit_db_conn* conn)
  * The offset points to key_size.
  */
 int
-bit_db_put(bit_db_conn* conn, char* key, void* value, size_t bytes)
+bit_db_put(bit_db_conn *conn, char *key, void *value, size_t bytes)
 {
     off_t off = lseek(conn->fd, 0, SEEK_END);
     size_t key_len = strlen(key) + 1;
 
     struct iovec iov[] = {
-        {.iov_base = (void*)&key_len, .iov_len = sizeof(size_t) },
-        {.iov_base = (void*)key, .iov_len = key_len },
-        {.iov_base = (void*)&bytes, .iov_len = sizeof(size_t) },
+        {.iov_base = (void *)&key_len, .iov_len = sizeof(size_t) },
+        {.iov_base = (void *)key, .iov_len = key_len },
+        {.iov_base = (void *)&bytes, .iov_len = sizeof(size_t) },
         {.iov_base = value, .iov_len = bytes }
     };
 
@@ -122,7 +122,7 @@ bit_db_put(bit_db_conn* conn, char* key, void* value, size_t bytes)
 }
 
 size_t
-bit_db_get(bit_db_conn* conn, char* key, void* value)
+bit_db_get(bit_db_conn *conn, char *key, void *value)
 {
     off_t *base_off, data_off;
     size_t key_size = strlen(key) + 1;
@@ -166,9 +166,9 @@ bit_db_get(bit_db_conn* conn, char* key, void* value)
 }
 
 int
-bit_db_keys(bit_db_conn* conn, dl_list* list)
+bit_db_keys(bit_db_conn *conn, dl_list *list)
 {
-    if (dl_list_init(list, sizeof(char*), false) == -1)
+    if (dl_list_init(list, sizeof(char *), false) == -1)
         return -1;
 
     if (hash_map_keys(&conn->map, list) == -1) {
@@ -180,7 +180,7 @@ bit_db_keys(bit_db_conn* conn, dl_list* list)
 
 #define BUF_SIZE 1024
 static void
-hash_file(FILE* fp, BYTE hash[])
+hash_file(FILE *fp, BYTE hash[])
 {
     SHA256_CTX ctx;
     BYTE buf[BUF_SIZE];
@@ -198,9 +198,9 @@ hash_file(FILE* fp, BYTE hash[])
  * upon loading.
  */
 int
-bit_db_persist_table(bit_db_conn* conn)
+bit_db_persist_table(bit_db_conn *conn)
 {
-    FILE* tb;
+    FILE *tb;
     char pathname[_POSIX_PATH_MAX];
     BYTE hash[SHA256_BLOCK_SIZE];
 
@@ -233,10 +233,10 @@ bit_db_persist_table(bit_db_conn* conn)
 }
 
 int
-bit_db_retrieve_table(bit_db_conn* conn)
+bit_db_retrieve_table(bit_db_conn *conn)
 {
     int status = 0;
-    FILE* fp;
+    FILE *fp;
     char pathname[_POSIX_PATH_MAX];
     BYTE read_hash[SHA256_BLOCK_SIZE];
     BYTE attached_hash[SHA256_BLOCK_SIZE];

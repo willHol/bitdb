@@ -4,10 +4,10 @@
 #include <string.h>
 #include <sys/types.h>
 
-static sl_node*
-new_node(key_value* kv)
+static sl_node *
+new_node(key_value *kv)
 {
-    sl_node* node = malloc(sizeof(*node));
+    sl_node *node = malloc(sizeof(*node));
     if (node == NULL) {
         errMsg("malloc() node");
         return NULL;
@@ -17,9 +17,9 @@ new_node(key_value* kv)
      * duplicate the data, to avoid potential hassle
      * in the future
      */
-    key_value* kv_cpy = malloc(sizeof(key_value));
-    char* key_cpy = malloc(strlen(kv->key) + 1);
-    off_t* value_cpy = malloc(sizeof(off_t));
+    key_value *kv_cpy = malloc(sizeof(key_value));
+    char *key_cpy = malloc(strlen(kv->key) + 1);
+    off_t *value_cpy = malloc(sizeof(off_t));
 
     memcpy(kv_cpy, kv, sizeof(key_value));
     strcpy(key_cpy, kv->key);
@@ -38,7 +38,7 @@ new_node(key_value* kv)
 }
 
 int
-sl_list_init(sl_list* list)
+sl_list_init(sl_list *list)
 {
     *list = (sl_list){.head = NULL, .tail = NULL, .num_elems = 0 };
 
@@ -46,7 +46,7 @@ sl_list_init(sl_list* list)
 }
 
 int
-sl_list_destroy(sl_list* list)
+sl_list_destroy(sl_list *list)
 {
     sl_node *u, *cur_u;
 
@@ -61,7 +61,7 @@ sl_list_destroy(sl_list* list)
 }
 
 int
-sl_list_destroy_kv(key_value* kv)
+sl_list_destroy_kv(key_value *kv)
 {
     if (kv == NULL)
         return 0;
@@ -74,9 +74,9 @@ sl_list_destroy_kv(key_value* kv)
 }
 
 int
-sl_list_push(sl_list* list, key_value* kv)
+sl_list_push(sl_list *list, key_value *kv)
 {
-    sl_node* u = new_node(kv);
+    sl_node *u = new_node(kv);
 
     if (u == NULL)
         return -1;
@@ -92,7 +92,7 @@ sl_list_push(sl_list* list, key_value* kv)
 }
 
 int
-sl_list_pop(sl_list* list, key_value** kv)
+sl_list_pop(sl_list *list, key_value **kv)
 {
     if (list->num_elems == 0) {
         *kv = NULL;
@@ -101,7 +101,7 @@ sl_list_pop(sl_list* list, key_value** kv)
 
     *kv = list->head->kv;
 
-    sl_node* old_head = list->head;
+    sl_node *old_head = list->head;
     list->head = list->head->next;
     list->num_elems--;
 
@@ -114,10 +114,10 @@ sl_list_pop(sl_list* list, key_value** kv)
 }
 
 int
-sl_list_keys(sl_list* slist, dl_list* dlist)
+sl_list_keys(sl_list *slist, dl_list *dlist)
 {
-    sl_node* node;
-    char* key;
+    sl_node *node;
+    char *key;
 
     node = slist->head;
     while (node != NULL) {
@@ -130,9 +130,9 @@ sl_list_keys(sl_list* slist, dl_list* dlist)
 }
 
 int
-sl_list_find(sl_list* list, char* key, off_t** value)
+sl_list_find(sl_list *list, char *key, off_t **value)
 {
-    sl_node* u;
+    sl_node *u;
 
     if (list == NULL || list->num_elems == 0) {
         *value = NULL;

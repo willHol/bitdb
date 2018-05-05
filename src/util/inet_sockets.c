@@ -39,11 +39,11 @@
 
 extern bool volatile run;
 
-static int inetPassiveSocket(const char* service, int type, socklen_t* addrlen,
+static int inetPassiveSocket(const char *service, int type, socklen_t *addrlen,
                              bool doListen, int backlog);
 
 int
-inetConnect(const char* host, const char* service, int type)
+inetConnect(const char *host, const char *service, int type)
 {
     struct addrinfo hints;
     struct addrinfo *result, *rp;
@@ -92,7 +92,7 @@ inetConnect(const char* host, const char* service, int type)
    Return the socket descriptor on success, or -1 on error. */
 
 static int /* Public interfaces: inetBind() and inetListen() */
-  inetPassiveSocket(const char* service, int type, socklen_t* addrlen,
+  inetPassiveSocket(const char *service, int type, socklen_t *addrlen,
                     bool doListen, int backlog)
 {
     struct addrinfo hints;
@@ -157,7 +157,7 @@ static int /* Public interfaces: inetBind() and inetListen() */
   'backlog'. Return socket descriptor on success, or -1 on error. */
 
 int
-inetListen(const char* service, int backlog, socklen_t* addrlen)
+inetListen(const char *service, int backlog, socklen_t *addrlen)
 {
     return inetPassiveSocket(service, SOCK_STREAM, addrlen, true, backlog);
 }
@@ -166,7 +166,7 @@ inetListen(const char* service, int backlog, socklen_t* addrlen)
    'service'. Return socket descriptor on success, or -1 on error. */
 
 int
-inetBind(const char* service, int type, socklen_t* addrlen)
+inetBind(const char *service, int type, socklen_t *addrlen)
 {
     return inetPassiveSocket(service, type, addrlen, false, 0);
 }
@@ -178,8 +178,8 @@ inetBind(const char* service, int type, socklen_t* addrlen)
    also returned as the function result. The caller must specify the
    size of the 'addrStr' buffer in 'addrStrLen'. */
 
-char*
-inetAddressStr(const struct sockaddr* addr, socklen_t addrlen, char* addrStr,
+char *
+inetAddressStr(const struct sockaddr *addr, socklen_t addrlen, char *addrStr,
                int addrStrLen)
 {
     char host[NI_MAXHOST], service[NI_MAXSERV];
@@ -194,11 +194,11 @@ inetAddressStr(const struct sockaddr* addr, socklen_t addrlen, char* addrStr,
 }
 
 ssize_t
-read_line(int sfd, void* buffer, size_t n)
+read_line(int sfd, void *buffer, size_t n)
 {
     ssize_t num_read;
     size_t tot_read;
-    char* buf;
+    char *buf;
     char ch;
 
     if (n <= 0 || buffer == NULL) {

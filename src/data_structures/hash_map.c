@@ -21,19 +21,19 @@ sdbm(char str[])
 }
 
 static size_t
-get_index(hash_map* map, char* key)
+get_index(hash_map *map, char *key)
 {
     return sdbm(key) % ((int)pow(2, map->dimension));
 }
 
 static void
-resize(hash_map* map, size_t dim_change)
+resize(hash_map *map, size_t dim_change)
 {
     size_t dim_new = map->dimension + dim_change;
-    sl_list* old_values = map->values;
-    sl_list* new_values = calloc(pow(2, dim_new), sizeof(sl_list));
+    sl_list *old_values = map->values;
+    sl_list *new_values = calloc(pow(2, dim_new), sizeof(sl_list));
     sl_list list;
-    sl_node* node;
+    sl_node *node;
 
     map->values = new_values;
     map->dimension = dim_new;
@@ -50,13 +50,13 @@ resize(hash_map* map, size_t dim_change)
 }
 
 static int
-find(hash_map* map, char* key, off_t** value)
+find(hash_map *map, char *key, off_t **value)
 {
     return sl_list_find(&(map->values[get_index(map, key)]), key, value);
 }
 
 int
-hash_map_init(hash_map* map)
+hash_map_init(hash_map *map)
 {
     map->values = calloc(2, sizeof(sl_list));
     if (map->values == NULL) {
@@ -72,7 +72,7 @@ hash_map_init(hash_map* map)
 }
 
 int
-hash_map_destroy(hash_map* map)
+hash_map_destroy(hash_map *map)
 {
     int status = 0;
     int s;
@@ -92,12 +92,12 @@ hash_map_destroy(hash_map* map)
 
 // TODO: Optimise this, alignment and not persisting unecessary fields
 int
-hash_map_write(FILE* tb, hash_map* map)
+hash_map_write(FILE *tb, hash_map *map)
 {
     sl_list list;
-    sl_node* node;
-    char* key;
-    off_t* value;
+    sl_node *node;
+    char *key;
+    off_t *value;
     size_t key_length;
 
     if (fwrite(map, sizeof(hash_map), 1, tb) == 0) {
@@ -140,14 +140,14 @@ hash_map_write(FILE* tb, hash_map* map)
 }
 
 int
-hash_map_read(FILE* fp, hash_map* map)
+hash_map_read(FILE *fp, hash_map *map)
 {
     int result = 0;
-    sl_list* list;
+    sl_list *list;
     sl_node *node = NULL, *prev_node = NULL;
-    key_value* kv;
-    char* key;
-    off_t* value;
+    key_value *kv;
+    char *key;
+    off_t *value;
     size_t key_length;
     size_t final_length;
     size_t final_dimension; /* In case destroy is called before all value are
@@ -265,10 +265,10 @@ RETURN:
  * Values are copied
  */
 int
-hash_map_put(hash_map* map, char* key, off_t* value)
+hash_map_put(hash_map *map, char *key, off_t *value)
 {
     int status;
-    off_t* f_value;
+    off_t *f_value;
     key_value kv = {.key = key, .value = value };
 
     if (find(map, key, &f_value) == 0) {
@@ -286,14 +286,14 @@ hash_map_put(hash_map* map, char* key, off_t* value)
 }
 
 int
-hash_map_get(hash_map* map, char* key, off_t** value)
+hash_map_get(hash_map *map, char *key, off_t **value)
 {
     size_t index = get_index(map, key);
     return sl_list_find(&(map->values[index]), key, value);
 }
 
 int
-hash_map_keys(hash_map* map, dl_list* list)
+hash_map_keys(hash_map *map, dl_list *list)
 {
     for (size_t i = 0; i < pow(2, map->dimension); i++) {
         if (sl_list_keys(&map->values[i], list) == -1)
