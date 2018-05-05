@@ -1,4 +1,4 @@
-CC=gcc
+CC= scan-build gcc
 CFLAGS =  -Iinclude -Ideps/Unity/src -Ideps/crypto-algorithms -g
 CFLAGS += -Wall -Wextra -Wformat=2 -Wno-format-nonliteral -Wshadow
 CFLAGS += -Wpointer-arith -Wcast-qual -Wmissing-prototypes -Wno-missing-braces
