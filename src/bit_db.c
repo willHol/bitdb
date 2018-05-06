@@ -62,9 +62,9 @@ bit_db_destroy_conn(bit_db_conn *conn)
     // TODO: Some kind of meaningful return value
     int s;
 
-    if ((s = pthread_mutex_lock(&conn->delete_mtx)) != 0) {
-        pthread_mutex_unlock(&conn->delete_mtx);
-        pthread_mutex_destroy(&conn->delete_mtx);
+    if ((s = pthread_mutex_lock(&conn->mtx)) != 0) {
+        pthread_mutex_unlock(&conn->mtx);
+        pthread_mutex_destroy(&conn->mtx);
     }
     close(conn->fd);
 
@@ -86,7 +86,7 @@ bit_db_connect(bit_db_conn *conn, const char *pathname)
         errExit("read() %s", pathname);
     }
 
-    if ((status = pthread_mutex_init(&conn->delete_mtx, NULL)) != 0)
+    if ((status = pthread_mutex_init(&conn->mtx, NULL)) != 0)
         errExitEN(status, "pthread_mutex_init()");
 
     if (read_magic_seq != magic_seq) {

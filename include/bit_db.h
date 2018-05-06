@@ -14,9 +14,9 @@ typedef struct {
     /*
      * Concurrent read and writes are allowable as data is never
      * overwritten, however we must ensure that the file is not
-     * deleted while we are reading from it
+     * deleted or its key contents copied to a more recent segment
      */
-    pthread_mutex_t delete_mtx;
+    pthread_mutex_t mtx;
     hash_map map;
 } bit_db_conn;
 

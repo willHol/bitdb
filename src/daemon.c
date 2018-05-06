@@ -6,6 +6,7 @@
 #include "sl_list.h"
 #include <errno.h>
 #include <pthread.h>
+#include <semaphore.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -43,6 +44,7 @@ static pthread_cond_t clients_new = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t clients_mtx;
 
 static dl_list workers;
+static sem_t workers_busy;
 
 /******************************************************/
 
@@ -95,7 +97,7 @@ sig_usr_handler(int signum);
 int
 main(void)
 {
-    int lfd, cfd;
+    int lfd, cfd, sval;
     bit_db_conn *conn;
     char key[] = "key";
     char value[] = "value";
@@ -119,6 +121,13 @@ main(void)
         if ((cfd = accept(lfd, NULL, NULL)) == -1) {
             syslog(LOG_ERR, "Failure in accept(): %s", strerror(errno));
             break;
+        }
+
+        if (sem_getvalue(&workers_busy, &sval) == -1)
+            errExit("sem_getvalue()");
+
+        if (sval + 1 > NTHREADS) {
+            close(cfd);
         }
 
         if (enqueue_client(cfd) == -1) {
@@ -161,6 +170,9 @@ WAIT:
     s = pthread_cond_wait(&clients_new, &clients_mtx);
     if (s != 0)
         errExitEN(s, "pthread_cond_wait()");
+
+    if (sem_post(&workers_busy) == -1)
+        errExit("sem_post()");
 
     /* clients_mtx is locked when pthread_cond_wait returns */
     if (!run) {
@@ -212,9 +224,8 @@ WAIT:
         free(cfd);
 
         /* If read failed due to interrupt check for exit condition */
-        if (num_read == -1 && errno == EINTR)
-            if (!run)
-                break;
+        if (num_read == -1 && errno == EINTR && !run)
+            break;
 
         if (dequeue_client(&cfd) == 0) {
             /* Another client to serve */
@@ -222,6 +233,10 @@ WAIT:
         }
         else if (run) {
             /* No clients left to serve and exit condition false */
+            while (sem_wait(&workers_busy) == -1)
+                if (errno != EINTR)
+                    errExit("sem_wait");
+
             goto WAIT;
         }
 
@@ -343,7 +358,7 @@ handle_get(int cfd, char *line, size_t length)
             return -1;
 
         /* Lock the connection so it cannot be deleted */
-        if ((s = pthread_mutex_lock(&conn->delete_mtx)) != 0)
+        if ((s = pthread_mutex_lock(&conn->mtx)) != 0)
             errExitEN(s, "pthread_mutex_lock()");
 
         /* Unlock connections list */
@@ -360,7 +375,7 @@ handle_get(int cfd, char *line, size_t length)
             break;
         }
 
-        if ((s = pthread_mutex_unlock(&conn->delete_mtx)) != 0)
+        if ((s = pthread_mutex_unlock(&conn->mtx)) != 0)
             errExitEN(s, "pthread_mutex_unlock()");
 
         if (bytes != -1)
@@ -418,6 +433,8 @@ init_data(void)
         exit(EXIT_FAILURE);
     if (dl_list_init(&workers, sizeof(pthread_t), true) == -1)
         exit(EXIT_FAILURE);
+    if (sem_init(&workers_busy, 0, 0) == -1)
+        errExit("sem_init()");
 }
 
 /*
@@ -566,6 +583,9 @@ destroy_data(void)
 
     /* Destroy pthread_conds */
     pthread_cond_destroy(&clients_new);
+
+    /* Destroy semaphores */
+    sem_destroy(&workers_busy);
 }
 
 /*
