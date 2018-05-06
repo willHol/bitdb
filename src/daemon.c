@@ -20,7 +20,7 @@
 #define DIRECTORY "db"
 #define NAME_PREFIX "db/bit_db"
 #define BUF_SIZE 4096
-#define SERVICE "25224"
+#define SERVICE "25225"
 #define BACKLOG 10
 #define NTHREADS 2
 
@@ -28,6 +28,8 @@
 
 #define OK "+OK"
 #define BENOKEY "-NOKEY Get request doesn't include a key\r\n"
+#define BADTOKEN "-BADTOKEN Not a vaild token\r\n"
+#define BEKEYNOTFOUND "-KEYNOTFOUND Key doesn't exist\r\n"
 
 /******************************************************/
 
@@ -46,29 +48,47 @@ static dl_list workers;
 
 /******************************************************/
 
-static void *handle_request(void *cfd);
-static ssize_t send_response(int cfd, char *msg, size_t bytes);
-static int dequeue_client(int **cfd);
-static int enqueue_client(int cfd);
+static void *
+handle_request(void *cfd);
+static ssize_t
+send_response(int cfd, char *msg, size_t bytes);
+static int
+dequeue_client(int **cfd);
+static int
+enqueue_client(int cfd);
 
 /*
  * Protocol functions
  */
-static ssize_t handle_get(int cfd, char *line);
+static ssize_t
+handle_get(int cfd, char *line, size_t length);
+static ssize_t
+handle_unknown_token(int cfd);
 
-static void init_data(void);
-static void init_mutex(void);
-static void open_connections(void);
-static void start_workers(void);
-static void handle_signals(void);
+static void
+init_data(void);
+static void
+init_mutex(void);
+static void
+open_connections(void);
+static void
+start_workers(void);
+static void
+handle_signals(void);
 
-static void destroy_data(void);
-static void close_connections(void);
-static void stop_workers(void);
-static void persist_tables(void);
+static void
+destroy_data(void);
+static void
+close_connections(void);
+static void
+stop_workers(void);
+static void
+persist_tables(void);
 
-static void sig_int_handler(int signum);
-static void sig_usr_handler(int signum);
+static void
+sig_int_handler(int signum);
+static void
+sig_usr_handler(int signum);
 
 /******************************************************/
 
@@ -76,6 +96,9 @@ int
 main(void)
 {
     int lfd, cfd;
+    bit_db_conn *conn;
+    char key[] = "key";
+    char value[] = "value";
 
     init_data();
     init_mutex();
@@ -89,6 +112,9 @@ main(void)
     }
     printf("[INFO] Listening on socket: %s\n", SERVICE);
 
+    dl_list_get(&connections, 0, (void **)&conn);
+    bit_db_put(conn, key, value, 6);
+
     while (run) {
         if ((cfd = accept(lfd, NULL, NULL)) == -1) {
             syslog(LOG_ERR, "Failure in accept(): %s", strerror(errno));
@@ -99,41 +125,6 @@ main(void)
             errMsg("enqueue_client() %d", cfd);
             break;
         }
-
-        /*
-        // The most recently opened connection
-        if (dl_list_peek(&connections, (void **)&connection) == -1)
-                break;
-        if (connection == NULL) {
-                printf("[ERROR] No segments are open\n");
-                break;
-        }
-        // Check if segment is full
-        if (bit_db_connect_full(connection)) {
-                strcpy(pathname, NAME_PREFIX);
-                sprintf(num, "%ld", (long)connections.num_elems);
-                strcat(pathname, num);
-
-                connection = malloc(sizeof(bit_db_conn));
-
-                if (bit_db_init(pathname) == -1) {
-                        printf("[ERROR] Failed to create segment file \"%s\"\n",
-        pathname); break;
-                }
-    pthread_mutex_init(&clients_mtx, &attr)) != 0)                if
-    (bit_db_connect(connection, pathname) == -1) {
-                        printf("[ERROR] Failed to open connection to segment
-        file
-        \"%s\"", pathname); break;
-                }
-                if (dl_list_push(&connections, connection) == -1) {
-                        break;
-                }
-                printf("[INFO] Created new segment file.");
-        }
-        */
-        // For testing
-        // run = false;
     }
     printf("\n");
     close(lfd);
@@ -157,9 +148,10 @@ handle_request(__attribute__((unused)) void *fd)
     ssize_t written;
     int *cfd = NULL;
     ssize_t num_read = 0;
-    char line[BUF_SIZE];
+    char line[BUF_SIZE] = "";
     char *line_dup;
     char *token;
+    size_t length;
 
 WAIT:
     s = pthread_mutex_lock(&clients_mtx);
@@ -183,18 +175,29 @@ WAIT:
     while (true) {
         /* Serve the client */
         while (run && ((num_read = read_line(*cfd, line, BUF_SIZE)) > 0)) {
-            line_dup = line;
-            token = strsep(&line_dup, " ");
-            if (token == NULL)
+            /* Empty string */
+            if (num_read <= 1)
                 continue;
 
-            written = 0;
+            line_dup = line;
+            token = strsep(&line_dup, " ");
+
+            /* The length of the remaining string, line_dup is null when no
+             * delimeter is present */
+            length = line_dup == NULL ? 0 : (token - line_dup) + num_read - 1;
+
+            if (line_dup != NULL)
+                line_dup[length] = '\0';
+
+            /* Coverts the token to lowercase */
             strlwr(token);
+
             if (strncmp("get", token, 3) == 0) {
-                written = handle_get(*cfd, line_dup);
+                written = handle_get(*cfd, line_dup, length);
             }
-            else
-                printf("Unrecognised token!\n");
+            else {
+                written = handle_unknown_token(*cfd);
+            }
 
             /* An error occured in handling request, could be a program
              * ending interrupt or some other error
@@ -311,17 +314,96 @@ enqueue_client(int cfd)
  * Handles a get request, e.g. "GET key CRLF"
  */
 static ssize_t
-handle_get(int cfd, char *line)
+handle_get(int cfd, char *line, size_t length)
 {
-    if (line == NULL || *line == ' ')
+    int s;
+    ssize_t bytes = 0;
+    char bytes_string[5];
+    char *key, *value = NULL;
+    bit_db_conn *conn;
+
+    if (length < 1)
         return send_response(cfd, BENOKEY, sizeof(BENOKEY));
 
-    if (send_response(cfd, OK, sizeof(OK)) == -1)
-        return -1;
+    key = strsep(&line, " ");
 
-    printf("%d\n", (int)line);
-    /* The number of bytes in the value */
-    return send_response(cfd, " 32\r\n", 6);
+    // TODO: replace with a stack iterator
+    for (size_t i = 0;; i++) {
+        /* Lock connections list so not modified while we are reading */
+        if ((s = pthread_mutex_lock(&conns_mtx)) != 0)
+            errExitEN(s, "pthread_mutex_lock()");
+
+        if (i >= connections.num_elems) {
+            if ((s = pthread_mutex_unlock(&conns_mtx)) != 0)
+                errExitEN(s, "pthread_mutex_unlock()");
+            break;
+        }
+
+        if (dl_list_get(&connections, i, (void **)&conn) == -1)
+            return -1;
+
+        /* Lock the connection so it cannot be deleted */
+        if ((s = pthread_mutex_lock(&conn->delete_mtx)) != 0)
+            errExitEN(s, "pthread_mutex_lock()");
+
+        /* Unlock connections list */
+        if ((s = pthread_mutex_unlock(&conns_mtx)) != 0)
+            errExitEN(s, "pthread_mutex_unlock()");
+
+        /* Keep trying unless we encounter exit condition */
+        while (true) {
+            if ((bytes = bit_db_get(conn, key, (void **)&value)) == -1) {
+                if (errno == EINTR && run) {
+                    continue;
+                }
+            }
+            break;
+        }
+
+        if ((s = pthread_mutex_unlock(&conn->delete_mtx)) != 0)
+            errExitEN(s, "pthread_mutex_unlock()");
+
+        if (bytes != -1)
+            break;
+        else if (errno != EKEYNOTFOUND)
+            return -1;
+    }
+
+    if (bytes != -1 && value != NULL) {
+        if (send_response(cfd, OK, sizeof(OK)) == -1)
+            goto ERROR;
+
+        s = snprintf(bytes_string, 5, " %ld\r\n", (long)bytes % 100);
+        if (s < 0)
+            goto ERROR;
+
+        if (send_response(cfd, bytes_string, sizeof(bytes_string)) == -1)
+            goto ERROR;
+
+        /* Sent "+OK xx\r\n", now send the raw bytes */
+        if (send_response(cfd, value, bytes) != bytes)
+            goto ERROR;
+
+        free(value);
+        return sizeof(bytes_string) + bytes;
+    }
+    else {
+        return send_response(cfd, BEKEYNOTFOUND, sizeof(BEKEYNOTFOUND));
+    }
+
+ERROR:
+    if (value != NULL)
+        free(value);
+    return -1;
+}
+
+/*
+ * Handles a request with an invalid token
+ */
+static ssize_t
+handle_unknown_token(int cfd)
+{
+    return send_response(cfd, BADTOKEN, sizeof(BADTOKEN));
 }
 
 /*
@@ -454,6 +536,7 @@ handle_signals(void)
 static void
 destroy_data(void)
 {
+    int s;
     int *cfd;
 
     /* Close connection to any remaining clients */
@@ -469,6 +552,20 @@ destroy_data(void)
 
     /* Free workers list */
     dl_list_destroy(&workers);
+
+    /* Destroy pthread_mutexes */
+    if ((s = pthread_mutex_lock(&clients_mtx)) != 0) {
+        pthread_mutex_unlock(&clients_mtx);
+        pthread_mutex_destroy(&clients_mtx);
+    }
+
+    if ((s = pthread_mutex_lock(&conns_mtx)) != 0) {
+        pthread_mutex_unlock(&conns_mtx);
+        pthread_mutex_destroy(&conns_mtx);
+    }
+
+    /* Destroy pthread_conds */
+    pthread_cond_destroy(&clients_new);
 }
 
 /*
