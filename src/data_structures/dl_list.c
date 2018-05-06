@@ -100,12 +100,12 @@ dl_list_init(dl_list *list, size_t elem_size, bool do_alloc)
     dummy->prev = dummy;
     dummy->next = dummy;
 
-    *list = (dl_list){.do_alloc = do_alloc,
-                      .num_elems = 0,
-                      .elem_size = elem_size,
-                      .dummy = dummy,
-                      .head = NULL,
-                      .tail = NULL };
+    *list = (dl_list){ .do_alloc = do_alloc,
+                       .num_elems = 0,
+                       .elem_size = elem_size,
+                       .dummy = dummy,
+                       .head = NULL,
+                       .tail = NULL };
     return 0;
 }
 

@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -58,7 +59,15 @@ bit_db_destroy(const char *pathname)
 int
 bit_db_destroy_conn(bit_db_conn *conn)
 {
+    // TODO: Some kind of meaningful return value
+    int s;
+
+    if ((s = pthread_mutex_lock(&conn->delete_mtx)) != 0) {
+        pthread_mutex_unlock(&conn->delete_mtx);
+        pthread_mutex_destroy(&conn->delete_mtx);
+    }
     close(conn->fd);
+
     return hash_map_destroy(&conn->map);
 }
 
@@ -76,6 +85,10 @@ bit_db_connect(bit_db_conn *conn, const char *pathname)
     if (read(conn->fd, &read_magic_seq, sizeof(unsigned long)) == -1) {
         errExit("read() %s", pathname);
     }
+
+    if ((status = pthread_mutex_init(&conn->delete_mtx, NULL)) != 0)
+        errExitEN(status, "pthread_mutex_init()");
+
     if (read_magic_seq != magic_seq) {
         errno = EMAGICSEQ;
         return -1;
@@ -106,10 +119,10 @@ bit_db_put(bit_db_conn *conn, char *key, void *value, size_t bytes)
     size_t key_len = strlen(key) + 1;
 
     struct iovec iov[] = {
-        {.iov_base = (void *)&key_len, .iov_len = sizeof(size_t) },
-        {.iov_base = (void *)key, .iov_len = key_len },
-        {.iov_base = (void *)&bytes, .iov_len = sizeof(size_t) },
-        {.iov_base = value, .iov_len = bytes }
+        { .iov_base = (void *)&key_len, .iov_len = sizeof(size_t) },
+        { .iov_base = (void *)key, .iov_len = key_len },
+        { .iov_base = (void *)&bytes, .iov_len = sizeof(size_t) },
+        { .iov_base = value, .iov_len = bytes }
     };
 
     if (writev(conn->fd, iov, 4) < 0) {
@@ -120,8 +133,8 @@ bit_db_put(bit_db_conn *conn, char *key, void *value, size_t bytes)
     return hash_map_put(&conn->map, key, &off);
 }
 
-size_t
-bit_db_get(bit_db_conn *conn, char *key, void *value)
+ssize_t
+bit_db_get(bit_db_conn *conn, char *key, void **value)
 {
     off_t *base_off, data_off;
     size_t key_size = strlen(key) + 1;
@@ -140,9 +153,9 @@ bit_db_get(bit_db_conn *conn, char *key, void *value)
      * we can return an error if the key is not does not
      * actually exist at the specified offset
      */
-    struct iovec iov[] = { {.iov_base = read_key, .iov_len = key_size },
-                           {.iov_base = &data_size,
-                            .iov_len = sizeof(size_t) } };
+    struct iovec iov[] = { { .iov_base = read_key, .iov_len = key_size },
+                           { .iov_base = &data_size,
+                             .iov_len = sizeof(size_t) } };
 
     /* Read the key and data size */
     if (preadv(conn->fd, iov, 2, *base_off + sizeof(size_t)) == -1) {
@@ -155,8 +168,16 @@ bit_db_get(bit_db_conn *conn, char *key, void *value)
         return -1;
     }
 
-    /* Read the data */
-    if (pread(conn->fd, value, data_size, data_off) == -1) {
+    *value = malloc(data_size);
+    if (*value == NULL) {
+        errMsg("malloc()");
+        return -1;
+    }
+
+    /* Read the data provided value is a valid pointer */
+    if (pread(conn->fd, *value, data_size, data_off) != data_size) {
+        free(*value);
+        *value = NULL;
         errMsg("pread() %s", conn->pathname);
         return -1;
     }

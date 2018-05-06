@@ -13,16 +13,23 @@
 #include <netdb.h>
 #include <sys/socket.h>
 
-int inetConnect(const char *host, const char *service, int type);
+int
+inetConnect(const char *host, const char *service, int type);
 
-int inetListen(const char *service, int backlog, socklen_t *addrlen);
+int
+inetListen(const char *service, int backlog, socklen_t *addrlen);
 
-int inetBind(const char *service, int type, socklen_t *addrlen);
+int
+inetBind(const char *service, int type, socklen_t *addrlen);
 
-char *inetAddressStr(const struct sockaddr *addr, socklen_t addrlen,
-                     char *addrStr, int addrStrLen);
+char *
+inetAddressStr(const struct sockaddr *addr,
+               socklen_t addrlen,
+               char *addrStr,
+               int addrStrLen);
 
-ssize_t read_line(int sfd, void *buffer, size_t n);
+ssize_t
+read_line(int sfd, void *buffer, size_t n);
 
 #define IS_ADDR_STR_LEN 4096
 /* Suggested length for string buffer that caller

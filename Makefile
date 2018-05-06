@@ -3,7 +3,7 @@ CFLAGS =  -Iinclude -Ideps/Unity/src -Ideps/crypto-algorithms -g
 CFLAGS += -Wall -Wextra -Wformat=2 -Wno-format-nonliteral -Wshadow
 CFLAGS += -Wpointer-arith -Wcast-qual -Wmissing-prototypes -Wno-missing-braces
 CFLAGS += -Wstrict-aliasing=1 -pedantic-errors
-CFLAGS += -std=c99 -D_GNU_SOURCE -O2
+CFLAGS += -std=c99 -D_GNU_SOURCE #-O2
 LIBS = -lm -pthread
 DEPS = bit_bd.h hash_map.h sl_list.h dl_list.h error_functions.h helper_functions.h
 OBJ = src/data_structures/hash_map.o src/data_structures/sl_list.o

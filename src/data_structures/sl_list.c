@@ -40,7 +40,7 @@ new_node(key_value *kv)
 int
 sl_list_init(sl_list *list)
 {
-    *list = (sl_list){.head = NULL, .tail = NULL, .num_elems = 0 };
+    *list = (sl_list){ .head = NULL, .tail = NULL, .num_elems = 0 };
 
     return 0;
 }

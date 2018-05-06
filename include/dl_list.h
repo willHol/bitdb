@@ -17,26 +17,38 @@ typedef struct dl_list {
     struct dl_node *tail;
 } dl_list;
 
-int dl_list_init(dl_list *list, size_t elem_size, bool do_alloc);
+int
+dl_list_init(dl_list *list, size_t elem_size, bool do_alloc);
 
-int dl_list_get(dl_list *list, size_t i, void **out);
+int
+dl_list_get(dl_list *list, size_t i, void **out);
 
-int dl_list_set(dl_list *list, size_t i, void *x);
+int
+dl_list_set(dl_list *list, size_t i, void *x);
 
-int dl_list_add(dl_list *list, size_t i, void *x);
+int
+dl_list_add(dl_list *list, size_t i, void *x);
 
-int dl_list_remove(dl_list *list, size_t i, void **x);
+int
+dl_list_remove(dl_list *list, size_t i, void **x);
 
-int dl_list_push(dl_list *list, void *x);
+int
+dl_list_push(dl_list *list, void *x);
 
-int dl_list_pop(dl_list *list, void **x);
+int
+dl_list_pop(dl_list *list, void **x);
 
-int dl_list_stack_peek(dl_list *list, void **x);
+int
+dl_list_stack_peek(dl_list *list, void **x);
 
-int dl_list_enqueue(dl_list *list, void *x);
+int
+dl_list_enqueue(dl_list *list, void *x);
 
-int dl_list_dequeue(dl_list *list, void **x);
+int
+dl_list_dequeue(dl_list *list, void **x);
 
-int dl_list_queue_peek(dl_list *list, void **x);
+int
+dl_list_queue_peek(dl_list *list, void **x);
 
-int dl_list_destroy(dl_list *list);
+int
+dl_list_destroy(dl_list *list);

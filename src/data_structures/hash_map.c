@@ -191,7 +191,7 @@ hash_map_read(FILE *fp, hash_map *map)
 
         final_length = list->num_elems;
         list->num_elems = 0;
-        for (size_t j = 0; j < final_length; i++) {
+        for (size_t j = 0; j < final_length; j++) {
             if (fread(&key_length, sizeof(size_t), 1, fp) == 0) {
                 if (ferror(fp) != 0)
                     errMsg("fread() key_length");
@@ -269,7 +269,7 @@ hash_map_put(hash_map *map, char *key, off_t *value)
 {
     int status;
     off_t *f_value;
-    key_value kv = {.key = key, .value = value };
+    key_value kv = { .key = key, .value = value };
 
     if (find(map, key, &f_value) == 0) {
         *f_value = *value;
