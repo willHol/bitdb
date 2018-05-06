@@ -23,7 +23,7 @@
 #define BUF_SIZE 4096
 #define SERVICE "25225"
 #define BACKLOG 10
-#define NTHREADS 2
+#define NTHREADS 4
 
 /******************** RESPONSES ************************/
 
@@ -37,7 +37,10 @@
 bool volatile run = true;
 
 static dl_list connections;
-static pthread_mutex_t conns_mtx;
+static pthread_mutex_t conns_mtx;          /* A lock on the modification of
+                                              the connections list */
+static pthread_mutex_t conns_creation_mtx; /* A lock on the creation of new
+                                              segment files */
 
 static dl_list clients;
 static pthread_cond_t clients_new = PTHREAD_COND_INITIALIZER;
@@ -64,6 +67,8 @@ enqueue_client(int cfd);
  */
 static ssize_t
 handle_get(int cfd, char *line, size_t length);
+static ssize_t
+handle_put(int cfd, char *line, size_t length);
 static ssize_t
 handle_unknown_token(int cfd);
 
@@ -342,6 +347,10 @@ handle_get(int cfd, char *line, size_t length)
 
     key = strsep(&line, " ");
 
+    /* conns_creation_mtx is recursive, so it wont block */
+    if ((s = pthread_mutex_lock(&conns_creation_mtx)) != 0)
+        errExitEN(s, "pthread_mutex_lock()");
+
     // TODO: replace with a stack iterator
     for (size_t i = 0;; i++) {
         /* Lock connections list so not modified while we are reading */
@@ -355,7 +364,7 @@ handle_get(int cfd, char *line, size_t length)
         }
 
         if (dl_list_get(&connections, i, (void **)&conn) == -1)
-            return -1;
+            errExit("dl_list_get()");
 
         /* Lock the connection so it cannot be deleted */
         if ((s = pthread_mutex_lock(&conn->mtx)) != 0)
@@ -374,6 +383,9 @@ handle_get(int cfd, char *line, size_t length)
             }
             break;
         }
+
+        if ((s = pthread_mutex_unlock(&conns_creation_mtx)) != 0)
+            errExitEN(s, "pthread_mutex_unlock() conns_creation_mtx");
 
         if ((s = pthread_mutex_unlock(&conn->mtx)) != 0)
             errExitEN(s, "pthread_mutex_unlock()");
@@ -413,6 +425,18 @@ ERROR:
 }
 
 /*
+ * Handles a put request, e.g. "PUT key 32CRLF"
+ */
+static ssize_t
+handle_put(int cfd, char *line, size_t length)
+{
+    char *size;
+
+    if (length < 1)
+        return send_response(cfd, BENOKEY, sizeof(BENOKEY));
+}
+
+/*
  * Handles a request with an invalid token
  */
 static ssize_t
@@ -449,9 +473,14 @@ init_mutex(void)
     if ((s = pthread_mutexattr_init(&attr)) != 0)
         errExitEN(s, "pthread_mutexattr_init()");
 
-    /* Defaults are fine for conns_mtx */
     if ((s = pthread_mutex_init(&conns_mtx, &attr)) != 0)
         errExitEN(s, "pthread_mutex_init() conns_mtx");
+
+    /* conns_creation_mtx should be recursive */
+    if ((s = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE)) != 0)
+        errExitEN(s, "pthread_mutexattr_settype()");
+    if ((s = pthread_mutex_init(&conns_creation_mtx, &attr)) != 0)
+        errExitEN(s, "pthread_mutex_init() conns_creation_mtx");
 
     /* clients_mtx should be error checking */
     if ((s = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK)) != 0)
@@ -580,6 +609,11 @@ destroy_data(void)
         pthread_mutex_unlock(&conns_mtx);
         pthread_mutex_destroy(&conns_mtx);
     }
+
+    while ((s = pthread_mutex_trylock(&conns_creation_mtx)) != 0)
+        ;
+    pthread_mutex_unlock(&conns_creation_mtx);
+    pthread_mutex_destroy(&conns_creation_mtx);
 
     /* Destroy pthread_conds */
     pthread_cond_destroy(&clients_new);
