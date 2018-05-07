@@ -483,7 +483,7 @@ handle_put(int cfd, char *line, size_t length)
         /* bit_db3 */
         snprintf(pathname,
                  _POSIX_NAME_MAX,
-                 "%s%ld\n",
+                 "%s%ld",
                  NAME_PREFIX,
                  connections.num_elems);
 
