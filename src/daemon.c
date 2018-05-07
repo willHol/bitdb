@@ -28,9 +28,11 @@
 /******************** RESPONSES ************************/
 
 #define OK "+OK"
-#define BENOKEY "-NOKEY Get request doesn't include a key\r\n"
-#define BADTOKEN "-BADTOKEN Not a vaild token\r\n"
-#define BEKEYNOTFOUND "-KEYNOTFOUND Key doesn't exist\r\n"
+#define BENOKEY "-NOKEY\r\n"
+#define BADTOKEN "-BADTOKEN\r\n"
+#define BEKEYNOTFOUND "-KEYNOTFOUND\r\n"
+#define BENOSIZE "-NOSIZE"
+#define BEBADSIZE "-BADSIZE"
 
 /******************************************************/
 
@@ -211,6 +213,9 @@ WAIT:
 
             if (strncmp("get", token, 3) == 0) {
                 written = handle_get(*cfd, line_dup, length);
+            }
+            else if (strncmp("put", token, 3) == 0) {
+                written = handle_put(*cfd, line_dup, length);
             }
             else {
                 written = handle_unknown_token(*cfd);
@@ -430,10 +435,115 @@ ERROR:
 static ssize_t
 handle_put(int cfd, char *line, size_t length)
 {
-    char *size;
+    int s;
+    ssize_t num_read;
+    size_t tot_read = 0;
+    void *buf = NULL;
+    long long size = 0;
+    char pathname[_POSIX_NAME_MAX];
+    char *key;
+    bit_db_conn *conn;
 
     if (length < 1)
         return send_response(cfd, BENOKEY, sizeof(BENOKEY));
+
+    key = strsep(&line, " ");
+    if (line == NULL)
+        return send_response(cfd, BENOSIZE, sizeof(BENOSIZE));
+
+    // TODO: custom strtol but for size_t
+
+    /* Remaining should be a decimal size */
+    size = strtoll(line, NULL, 10);
+    if (size <= 0 || size == LLONG_MAX)
+        return send_response(cfd, BEBADSIZE, sizeof(BEBADSIZE));
+
+    /* Lock the list of segments */
+    if ((s = pthread_mutex_lock(&conns_mtx)) != 0)
+        errExitEN(s, "pthread_mutex_lock()");
+
+    /* We want the most recent segment */
+    if (dl_list_stack_peek(&connections, (void **)&conn) == -1)
+        errExit("dl_list_stack_peek()");
+
+    /* Lock the connection so it cannot be written/read */
+    if ((s = pthread_mutex_lock(&conn->mtx)) != 0)
+        errExitEN(s, "pthread_mutex_lock()");
+
+    /* We need exclusive permission to create new segments */
+    if ((s = pthread_mutex_lock(&conns_creation_mtx)) != 0)
+        errExitEN(s, "pthread_mutex_lock()");
+
+    /* Check if the segment is full, create new segment if necessary */
+    if (bit_db_connect_full(conn)) {
+        /* Unlock the full segment - we don't need it */
+        if ((s = pthread_mutex_unlock(&conn->mtx)) != 0)
+            errExitEN(s, "pthread_mutex_unlock()");
+
+        /* bit_db3 */
+        snprintf(pathname,
+                 _POSIX_NAME_MAX,
+                 "%s%ld\n",
+                 NAME_PREFIX,
+                 connections.num_elems);
+
+        if (bit_db_init(pathname) == -1)
+            errExit("bit_db_init()");
+
+        if (bit_db_connect(conn, pathname) == -1)
+            errExit("bit_db_connect()");
+
+        if (dl_list_push(&connections, conn) == -1)
+            errExit("dl_list_push()");
+
+        /* Lock the new segment */
+        if ((s = pthread_mutex_lock(&conn->mtx)) != 0)
+            errExitEN(s, "pthread_mutex_lock()");
+    }
+
+    /* We can unlock the list now */
+    if ((s = pthread_mutex_unlock(&conns_mtx)) != 0)
+        errExitEN(s, "pthread_mutex_unlock()");
+
+    /* We no longer need exclusive permission to create new segments */
+    if ((s = pthread_mutex_unlock(&conns_creation_mtx)) != 0)
+        errExitEN(s, "pthread_mutex_unlock()");
+
+    /* conn now points to the most recent non-full segment file */
+
+    /* Receive the data */
+    buf = malloc(size);
+    while (tot_read < (size_t)size) {
+        if ((num_read = read(cfd, buf, size - tot_read)) == -1) {
+            if (errno != EINTR || !run)
+                goto ERROR;
+        }
+        else {
+            tot_read += num_read;
+        }
+    }
+
+    /* Persist the data */
+    if (bit_db_put(conn, key, buf, size) == -1)
+        errExit("bit_db_put()");
+
+    /* Unlock the segment */
+    if ((s = pthread_mutex_unlock(&conn->mtx)) != 0)
+        errExitEN(s, "pthread_mutex_unlock()");
+
+    free(buf);
+
+    if (send_response(cfd, OK, sizeof(OK)) == -1)
+        return -1;
+    if (send_response(cfd, "\r\n", 3) == -1)
+        return -1;
+
+    return sizeof(OK) + 3;
+
+ERROR:
+    if (buf != NULL)
+        free(buf);
+    return -1;
 }
 
 /*
